@@ -1,0 +1,34 @@
+<%- include("partials/header") %>
+
+<div class="profile-page profile-theme-<%= order.theme %>" style="--accent:<%= order.accent_color %>;">
+  <div class="profile-orb orb-a"></div>
+  <div class="profile-orb orb-b"></div>
+
+  <div class="profile-card">
+    <% if (order.profile_image) { %>
+      <img class="avatar" src="<%= order.profile_image %>" alt="<%= order.business_name %>" />
+    <% } %>
+
+    <p class="profile-tag">Custom Link Page</p>
+    <h1><%= order.business_name %></h1>
+
+    <% if (order.bio) { %>
+      <p class="bio"><%= order.bio %></p>
+    <% } %>
+
+    <% if (order.phone) { %>
+      <p class="contact"><%= order.phone %></p>
+    <% } %>
+
+    <div class="profile-links">
+      <% order.links.forEach(link => { %>
+        <a class="profile-link" href="<%= link.url %>" target="_blank" rel="noreferrer">
+          <span><%= link.label %></span>
+          <small>Open</small>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<%- include("partials/footer") %>

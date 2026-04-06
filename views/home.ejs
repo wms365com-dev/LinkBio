@@ -1,0 +1,120 @@
+<%- include("partials/header") %>
+
+<div class="site-shell">
+  <header class="marketing-nav container">
+    <a class="brand-mark" href="/">LinkBio Studio</a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="/admin/login">Admin</a>
+      <a class="btn" href="/buy">Start for <%= offerPriceDisplay %></a>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card hero-card">
+      <div class="hero-copy">
+        <p class="eyebrow">Done-for-you link pages</p>
+        <h1>Build branded bio pages fast and sell the setup like a service.</h1>
+        <p class="lead">
+          Collect a small deposit, gather their branding, edit the layout from your dashboard,
+          and publish a custom page in minutes on Railway.
+        </p>
+        <div class="actions">
+          <a class="btn" href="/buy">Create the first order</a>
+          <a class="btn btn-secondary" href="/intake">Test the intake form</a>
+        </div>
+        <div class="hero-badges">
+          <span>Railway-ready hosting</span>
+          <span>Stripe checkout or manual orders</span>
+          <span>Admin-managed publishing</span>
+        </div>
+      </div>
+
+      <div class="hero-preview">
+        <div class="phone-frame">
+          <div class="phone-card">
+            <div class="phone-avatar"></div>
+            <p class="phone-title">Grey Wolf Logistics</p>
+            <p class="phone-copy">Overflow warehouse, same-day pallet help, custom quotes.</p>
+            <div class="phone-link">Book a quote</div>
+            <div class="phone-link phone-link-alt">Call now</div>
+            <div class="phone-link phone-link-soft">Instagram</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid three">
+      <article class="card">
+        <p class="card-number">01</p>
+        <h2>Start with a low-friction offer</h2>
+        <p>Use <%= offerPriceDisplay %> as the entry point, then upsell premium themes, faster delivery, or ongoing edits.</p>
+      </article>
+      <article class="card">
+        <p class="card-number">02</p>
+        <h2>Collect everything in one form</h2>
+        <p>Customers send their links, colors, bio, and logo once, so you can move straight into fulfillment.</p>
+      </article>
+      <article class="card">
+        <p class="card-number">03</p>
+        <h2>Publish custom pages fast</h2>
+        <p>Review the order, refine the layout, and publish the page with a clean slug like <code>/p/your-brand</code>.</p>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <div>
+          <p class="eyebrow">Theme ideas</p>
+          <h2>Offer layouts that feel different</h2>
+        </div>
+        <a class="text-link" href="/buy">Sell one today</a>
+      </div>
+
+      <div class="template-grid">
+        <article class="template-card theme-midnight-demo">
+          <span>Midnight Glass</span>
+          <strong>Great for DJs, creators, nightlife, and event brands.</strong>
+        </article>
+        <article class="template-card theme-linen-demo">
+          <span>Linen Studio</span>
+          <strong>Clean and premium for beauty, wellness, and personal brands.</strong>
+        </article>
+        <article class="template-card theme-sunset-demo">
+          <span>Sunset Pop</span>
+          <strong>Bright and direct for small business promos and local service offers.</strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <div>
+          <p class="eyebrow">Published examples</p>
+          <h2>Pages you can show prospects</h2>
+        </div>
+      </div>
+
+      <div class="grid three">
+        <% if (published.length === 0) { %>
+          <div class="empty-state">
+            <h3>No pages published yet</h3>
+            <p>Create your first order, publish it, and this section becomes your built-in proof.</p>
+          </div>
+        <% } %>
+
+        <% published.forEach(item => { %>
+          <a class="example-card" href="/p/<%= item.slug %>">
+            <% if (item.profile_image) { %>
+              <img class="example-thumb" src="<%= item.profile_image %>" alt="<%= item.business_name %>" />
+            <% } %>
+            <strong><%= item.business_name %></strong>
+            <span><%= item.bio || "Branded link-in-bio page" %></span>
+            <small><%= baseUrl %>/p/<%= item.slug %></small>
+          </a>
+        <% }) %>
+      </div>
+    </section>
+  </main>
+</div>
+
+<%- include("partials/footer") %>

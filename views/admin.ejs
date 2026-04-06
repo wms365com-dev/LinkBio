@@ -1,0 +1,86 @@
+<%- include("partials/header") %>
+
+<div class="site-shell">
+  <header class="marketing-nav container">
+    <a class="brand-mark" href="/">LinkBio Studio</a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="/buy">New order</a>
+      <form method="POST" action="/admin/logout">
+        <button class="btn btn-secondary" type="submit">Logout</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="grid four stats-grid">
+      <article class="card stat-card">
+        <span>Total orders</span>
+        <strong><%= stats.total %></strong>
+      </article>
+      <article class="card stat-card">
+        <span>Published</span>
+        <strong><%= stats.published %></strong>
+      </article>
+      <article class="card stat-card">
+        <span>Paid</span>
+        <strong><%= stats.paid %></strong>
+      </article>
+      <article class="card stat-card">
+        <span>Not live yet</span>
+        <strong><%= stats.draft %></strong>
+      </article>
+    </section>
+
+    <section class="card table-wrap">
+      <div class="section-header">
+        <div>
+          <p class="eyebrow">Orders</p>
+          <h1>Admin dashboard</h1>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Business</th>
+            <th>Customer</th>
+            <th>Links</th>
+            <th>Payment</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (orders.length === 0) { %>
+            <tr>
+              <td colspan="8">No orders yet.</td>
+            </tr>
+          <% } %>
+
+          <% orders.forEach(order => { %>
+            <tr>
+              <td><%= order.id %></td>
+              <td>
+                <strong><%= order.business_name %></strong>
+                <div class="table-meta"><%= order.slug %></div>
+              </td>
+              <td>
+                <%= order.full_name %>
+                <div class="table-meta"><%= order.email %></div>
+              </td>
+              <td><%= order.links.length %></td>
+              <td><span class="pill"><%= order.payment_status %></span></td>
+              <td><span class="pill <%= order.is_published ? 'pill-live' : '' %>"><%= order.status %></span></td>
+              <td><%= order.created_at %></td>
+              <td><a class="table-link" href="/admin/order/<%= order.id %>">Open</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</div>
+
+<%- include("partials/footer") %>

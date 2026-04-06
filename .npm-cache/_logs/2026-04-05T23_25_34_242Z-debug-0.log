@@ -1,0 +1,217 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.6.2
+2 info using node@v24.12.0
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:C:\LinkBio\linkbio-mvp\linkbio-mvp\.npmrc
+5 silly config load:file:C:\Users\T470\.npmrc
+6 silly config load:file:C:\Users\T470\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install" "--cache" ".npm-cache"
+9 verbose logfile logs-max:10 dir:C:\LinkBio\linkbio-mvp\linkbio-mvp\.npm-cache\_logs\2026-04-05T23_25_34_242Z-
+10 verbose logfile C:\LinkBio\linkbio-mvp\linkbio-mvp\.npm-cache\_logs\2026-04-05T23_25_34_242Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+13 silly idealTree buildDeps
+14 silly fetch manifest multer@^2.0.2
+15 silly packumentCache full:https://registry.npmjs.org/multer cache-miss
+16 http cache https://registry.npmjs.org/multer 95ms (cache hit)
+17 silly packumentCache full:https://registry.npmjs.org/multer set size:150932 disposed:false
+18 silly placeDep ROOT multer@2.1.1 REPLACE for: linkbio-mvp@1.0.0 want: ^2.0.2
+19 silly fetch manifest concat-stream@^2.0.0
+20 silly packumentCache full:https://registry.npmjs.org/concat-stream cache-miss
+21 http cache https://registry.npmjs.org/concat-stream 13ms (cache hit)
+22 silly packumentCache full:https://registry.npmjs.org/concat-stream set size:63783 disposed:false
+23 silly placeDep ROOT concat-stream@2.0.0 OK for: multer@2.1.1 want: ^2.0.0
+24 silly fetch manifest buffer-from@^1.0.0
+25 silly packumentCache full:https://registry.npmjs.org/buffer-from cache-miss
+26 silly fetch manifest readable-stream@^3.0.2
+27 silly packumentCache full:https://registry.npmjs.org/readable-stream cache-miss
+28 silly fetch manifest typedarray@^0.0.6
+29 silly packumentCache full:https://registry.npmjs.org/typedarray cache-miss
+30 http cache https://registry.npmjs.org/readable-stream 19ms (cache hit)
+31 silly packumentCache full:https://registry.npmjs.org/readable-stream set size:261096 disposed:false
+32 http cache https://registry.npmjs.org/buffer-from 33ms (cache hit)
+33 silly packumentCache full:https://registry.npmjs.org/buffer-from set size:15463 disposed:false
+34 http cache https://registry.npmjs.org/typedarray 34ms (cache hit)
+35 silly packumentCache full:https://registry.npmjs.org/typedarray set size:18469 disposed:false
+36 silly placeDep ROOT buffer-from@1.1.2 OK for: concat-stream@2.0.0 want: ^1.0.0
+37 silly placeDep ROOT readable-stream@3.6.2 OK for: concat-stream@2.0.0 want: ^3.0.2
+38 silly placeDep ROOT typedarray@0.0.6 OK for: concat-stream@2.0.0 want: ^0.0.6
+39 silly fetch manifest string_decoder@^1.1.1
+40 silly packumentCache full:https://registry.npmjs.org/string_decoder cache-miss
+41 silly fetch manifest util-deprecate@^1.0.1
+42 silly packumentCache full:https://registry.npmjs.org/util-deprecate cache-miss
+43 http cache https://registry.npmjs.org/util-deprecate 9ms (cache hit)
+44 silly packumentCache full:https://registry.npmjs.org/util-deprecate set size:6674 disposed:false
+45 http cache https://registry.npmjs.org/string_decoder 15ms (cache hit)
+46 silly packumentCache full:https://registry.npmjs.org/string_decoder set size:28441 disposed:false
+47 silly placeDep ROOT string_decoder@1.3.0 OK for: readable-stream@3.6.2 want: ^1.1.1
+48 silly placeDep ROOT util-deprecate@1.0.2 OK for: readable-stream@3.6.2 want: ^1.0.1
+49 silly reify mark retired [
+49 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\concat-stream'
+49 silly reify ]
+50 silly reify mark retired [ 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\core-util-is' ]
+51 silly reify mark retired [ 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\isarray' ]
+52 silly reify mark retired [ 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\minimist' ]
+53 silly reify mark retired [
+53 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\mkdirp',
+53 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.bin\\mkdirp',
+53 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.bin\\mkdirp.cmd',
+53 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.bin\\mkdirp.ps1'
+53 silly reify ]
+54 silly reify mark retired [ 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\multer' ]
+55 silly reify mark retired [
+55 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\object-assign'
+55 silly reify ]
+56 silly reify mark retired [
+56 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\process-nextick-args'
+56 silly reify ]
+57 silly reify mark retired [
+57 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\readable-stream'
+57 silly reify ]
+58 silly reify mark retired [
+58 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\string_decoder'
+58 silly reify ]
+59 silly reify mark retired [ 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\xtend' ]
+60 silly reify moves {
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\concat-stream': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.concat-stream-Grr8Zkhl',
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\core-util-is': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.core-util-is-AeVr0Ol3',
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\isarray': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.isarray-hjMfyPgZ',
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\minimist': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.minimist-JDDAanqf',
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\mkdirp': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.mkdirp-3ZI3UeEN',
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.bin\\mkdirp': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.bin\\.mkdirp-GHduvYDG',
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.bin\\mkdirp.cmd': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.bin\\.mkdirp.cmd-g0HrjNsG',
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.bin\\mkdirp.ps1': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.bin\\.mkdirp.ps1-BmNMyFmH',
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\multer': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.multer-0iJ7OIAf',
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\object-assign': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.object-assign-tiiqMGnI',
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\process-nextick-args': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.process-nextick-args-kOWHGkPz',
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\readable-stream': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.readable-stream-u7hYthPO',
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\string_decoder': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.string_decoder-yIDXik0I',
+60 silly reify   'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\xtend': 'C:\\LinkBio\\linkbio-mvp\\linkbio-mvp\\node_modules\\.xtend-peZMwhqC'
+60 silly reify }
+61 silly audit bulk request {
+61 silly audit   accepts: [ '1.3.8' ],
+61 silly audit   'append-field': [ '1.0.0' ],
+61 silly audit   'array-flatten': [ '1.1.1' ],
+61 silly audit   async: [ '3.2.6' ],
+61 silly audit   'balanced-match': [ '1.0.2' ],
+61 silly audit   'body-parser': [ '1.20.4' ],
+61 silly audit   'brace-expansion': [ '2.0.3' ],
+61 silly audit   busboy: [ '1.6.0' ],
+61 silly audit   bytes: [ '3.1.2' ],
+61 silly audit   'call-bind-apply-helpers': [ '1.0.2' ],
+61 silly audit   'call-bound': [ '1.0.4' ],
+61 silly audit   'content-disposition': [ '0.5.4' ],
+61 silly audit   'content-type': [ '1.0.5' ],
+61 silly audit   cookie: [ '0.7.2' ],
+61 silly audit   'cookie-signature': [ '1.0.7' ],
+61 silly audit   debug: [ '2.6.9', '3.1.0' ],
+61 silly audit   depd: [ '2.0.0' ],
+61 silly audit   destroy: [ '1.2.0' ],
+61 silly audit   dotenv: [ '16.6.1' ],
+61 silly audit   'dunder-proto': [ '1.0.1' ],
+61 silly audit   'ee-first': [ '1.1.1' ],
+61 silly audit   ejs: [ '3.1.10' ],
+61 silly audit   encodeurl: [ '2.0.0' ],
+61 silly audit   'es-define-property': [ '1.0.1' ],
+61 silly audit   'es-errors': [ '1.3.0' ],
+61 silly audit   'es-object-atoms': [ '1.1.1' ],
+61 silly audit   'escape-html': [ '1.0.3' ],
+61 silly audit   etag: [ '1.8.1' ],
+61 silly audit   express: [ '4.22.1' ],
+61 silly audit   'express-session': [ '1.19.0' ],
+61 silly audit   filelist: [ '1.0.6' ],
+61 silly audit   finalhandler: [ '1.3.2' ],
+61 silly audit   forwarded: [ '0.2.0' ],
+61 silly audit   fresh: [ '0.5.2' ],
+61 silly audit   'function-bind': [ '1.1.2' ],
+61 silly audit   'get-intrinsic': [ '1.3.0' ],
+61 silly audit   'get-proto': [ '1.0.1' ],
+61 silly audit   gopd: [ '1.2.0' ],
+61 silly audit   'has-symbols': [ '1.1.0' ],
+61 silly audit   hasown: [ '2.0.2' ],
+61 silly audit   'http-errors': [ '2.0.1' ],
+61 silly audit   'iconv-lite': [ '0.4.24' ],
+61 silly audit   inherits: [ '2.0.4' ],
+61 silly audit   'ipaddr.js': [ '1.9.1' ],
+61 silly audit   jake: [ '10.9.4' ],
+61 silly audit   'math-intrinsics': [ '1.1.0' ],
+61 silly audit   'media-typer': [ '0.3.0' ],
+61 silly audit   'merge-descriptors': [ '1.0.3' ],
+61 silly audit   'method-override': [ '3.0.0' ],
+61 silly audit   methods: [ '1.1.2' ],
+61 silly audit   mime: [ '1.6.0' ],
+61 silly audit   'mime-db': [ '1.52.0' ],
+61 silly audit   'mime-types': [ '2.1.35' ],
+61 silly audit   minimatch: [ '5.1.9' ],
+61 silly audit   ms: [ '2.0.0', '2.1.3' ],
+61 silly audit   negotiator: [ '0.6.3' ],
+61 silly audit   'object-inspect': [ '1.13.4' ],
+61 silly audit   'on-finished': [ '2.4.1' ],
+61 silly audit   'on-headers': [ '1.1.0' ],
+61 silly audit   parseurl: [ '1.3.3' ],
+61 silly audit   'path-to-regexp': [ '0.1.13' ],
+61 silly audit   picocolors: [ '1.1.1' ],
+61 silly audit   'proxy-addr': [ '2.0.7' ],
+61 silly audit   qs: [ '6.14.2' ],
+61 silly audit   'random-bytes': [ '1.0.0' ],
+61 silly audit   'range-parser': [ '1.2.1' ],
+61 silly audit   'raw-body': [ '2.5.3' ],
+61 silly audit   'safe-buffer': [ '5.2.1' ],
+61 silly audit   'safer-buffer': [ '2.1.2' ],
+61 silly audit   send: [ '0.19.2' ],
+61 silly audit   'serve-static': [ '1.16.3' ],
+61 silly audit   setprototypeof: [ '1.2.0' ],
+61 silly audit   'side-channel': [ '1.1.0' ],
+61 silly audit   'side-channel-list': [ '1.0.0' ],
+61 silly audit   'side-channel-map': [ '1.0.1' ],
+61 silly audit   'side-channel-weakmap': [ '1.0.2' ],
+61 silly audit   slugify: [ '1.6.9' ],
+61 silly audit   statuses: [ '2.0.2' ],
+61 silly audit   streamsearch: [ '1.1.0' ],
+61 silly audit   stripe: [ '18.5.0' ],
+61 silly audit   toidentifier: [ '1.0.1' ],
+61 silly audit   'type-is': [ '1.6.18' ],
+61 silly audit   'uid-safe': [ '2.1.5' ],
+61 silly audit   unpipe: [ '1.0.0' ],
+61 silly audit   'utils-merge': [ '1.0.1' ],
+61 silly audit   vary: [ '1.1.2' ],
+61 silly audit   multer: [ '2.1.1' ],
+61 silly audit   'concat-stream': [ '2.0.0' ],
+61 silly audit   'buffer-from': [ '1.1.2' ],
+61 silly audit   'readable-stream': [ '3.6.2' ],
+61 silly audit   typedarray: [ '0.0.6' ],
+61 silly audit   string_decoder: [ '1.3.0' ],
+61 silly audit   'util-deprecate': [ '1.0.2' ]
+61 silly audit }
+62 http cache string_decoder@https://registry.npmjs.org/string_decoder/-/string_decoder-1.3.0.tgz 0ms (cache hit)
+63 http cache readable-stream@https://registry.npmjs.org/readable-stream/-/readable-stream-3.6.2.tgz 0ms (cache hit)
+64 http cache multer@https://registry.npmjs.org/multer/-/multer-2.1.1.tgz 0ms (cache hit)
+65 silly tarball no local data for string_decoder@https://registry.npmjs.org/string_decoder/-/string_decoder-1.3.0.tgz. Extracting by manifest.
+66 http cache concat-stream@https://registry.npmjs.org/concat-stream/-/concat-stream-2.0.0.tgz 0ms (cache hit)
+67 silly tarball no local data for multer@https://registry.npmjs.org/multer/-/multer-2.1.1.tgz. Extracting by manifest.
+68 silly tarball no local data for concat-stream@https://registry.npmjs.org/concat-stream/-/concat-stream-2.0.0.tgz. Extracting by manifest.
+69 http fetch GET 200 https://registry.npmjs.org/concat-stream/-/concat-stream-2.0.0.tgz 127ms (cache miss)
+70 http fetch POST 200 https://registry.npmjs.org/-/npm/v1/security/advisories/bulk 222ms
+71 silly audit report {}
+72 http fetch GET 200 https://registry.npmjs.org/string_decoder/-/string_decoder-1.3.0.tgz 149ms (cache miss)
+73 http fetch GET 200 https://registry.npmjs.org/multer/-/multer-2.1.1.tgz 169ms (cache miss)
+74 silly REMOVE node_modules/xtend
+75 silly CHANGE node_modules/string_decoder
+76 silly REMOVE node_modules/string_decoder/node_modules/safe-buffer
+77 silly CHANGE node_modules/readable-stream
+78 silly REMOVE node_modules/readable-stream/node_modules/safe-buffer
+79 silly REMOVE node_modules/process-nextick-args
+80 silly REMOVE node_modules/object-assign
+81 silly CHANGE node_modules/multer
+82 silly REMOVE node_modules/mkdirp
+83 silly REMOVE node_modules/minimist
+84 silly REMOVE node_modules/isarray
+85 silly REMOVE node_modules/core-util-is
+86 silly CHANGE node_modules/concat-stream
+87 verbose cwd C:\LinkBio\linkbio-mvp\linkbio-mvp
+88 verbose os Windows_NT 10.0.19045
+89 verbose node v24.12.0
+90 verbose npm  v11.6.2
+91 verbose exit 0
+92 info ok

@@ -1,0 +1,28 @@
+<%- include("partials/header") %>
+
+<div class="site-shell">
+  <header class="simple-nav container">
+    <a class="brand-mark" href="/">LinkBio Studio</a>
+    <a class="text-link" href="/">Back home</a>
+  </header>
+
+  <main class="container narrow">
+    <section class="card">
+      <p class="eyebrow">Private access</p>
+      <h1>Admin login</h1>
+      <p class="lead">Use the admin password from your environment variables.</p>
+
+      <% if (error) { %>
+        <div class="error"><%= error %></div>
+      <% } %>
+
+      <form method="POST" action="/admin/login" class="form-stack">
+        <label>Password</label>
+        <input type="password" name="password" required />
+        <button class="btn" type="submit">Log in</button>
+      </form>
+    </section>
+  </main>
+</div>
+
+<%- include("partials/footer") %>
