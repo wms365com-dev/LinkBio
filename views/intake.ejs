@@ -22,6 +22,16 @@
         </div>
       <% } %>
 
+      <datalist id="link-label-suggestions">
+        <% socialLinkSuggestions.forEach(option => { %>
+          <option value="<%= option.label %>"></option>
+        <% }) %>
+        <option value="Website"></option>
+        <option value="Store"></option>
+        <option value="Book Now"></option>
+        <option value="Portfolio"></option>
+      </datalist>
+
       <form method="POST" action="/intake" enctype="multipart/form-data" class="form-stack">
         <input type="hidden" name="session_id" value="<%= sessionId %>" />
 
@@ -47,7 +57,12 @@
           </div>
         </div>
 
-        <label>Short bio</label>
+        <div class="section-header compact-header">
+          <div>
+            <h2>Bio</h2>
+            <p class="section-copy">Add a short description for the public page.</p>
+          </div>
+        </div>
         <textarea name="bio" rows="4" placeholder="Tell people what you do."><%= values.bio %></textarea>
 
         <div class="form-grid two">
@@ -74,14 +89,15 @@
         <div class="section-header">
           <div>
             <h2>Buttons and links</h2>
-            <p class="section-copy">Add the labels exactly as you want them to appear on the public page.</p>
+            <p class="section-copy">Start with social labels like Facebook, TikTok, LinkedIn, or use any custom label you want.</p>
           </div>
         </div>
 
         <% values.links.forEach((link, index) => { %>
+          <% const suggestion = socialLinkSuggestions[index] || socialLinkSuggestions[socialLinkSuggestions.length - 1]; %>
           <div class="link-row">
-            <input name="link_label" value="<%= link.label %>" placeholder="Instagram" />
-            <input name="link_url" value="<%= link.url %>" placeholder="instagram.com/yourname" />
+            <input name="link_label" value="<%= link.label %>" placeholder="<%= suggestion.label %>" list="link-label-suggestions" />
+            <input name="link_url" value="<%= link.url %>" placeholder="<%= suggestion.placeholder %>" />
           </div>
         <% }) %>
 

@@ -56,6 +56,18 @@
         <div class="success"><%= info %></div>
       <% } %>
 
+      <datalist id="link-label-suggestions">
+        <% socialLinkSuggestions.forEach(option => { %>
+          <option value="<%= option.label %>"></option>
+        <% }) %>
+        <option value="Website"></option>
+        <option value="Store"></option>
+        <option value="Book Now"></option>
+        <option value="Portfolio"></option>
+        <option value="Menu"></option>
+        <option value="Call Now"></option>
+      </datalist>
+
       <form method="POST" action="/studio" enctype="multipart/form-data" class="form-stack">
         <div class="form-grid two">
           <div>
@@ -80,7 +92,12 @@
           </div>
         </div>
 
-        <label>Short bio</label>
+        <div class="section-header compact-header">
+          <div>
+            <h2>Bio</h2>
+            <p class="section-copy">Add a short about section so visitors know who you are and what you do.</p>
+          </div>
+        </div>
         <textarea name="bio" rows="4" placeholder="Tell visitors what you do."><%= values.bio %></textarea>
 
         <div class="form-grid two">
@@ -126,14 +143,15 @@
         <div class="section-header">
           <div>
             <h2>Buttons and links</h2>
-            <p class="section-copy">Buttons with labels and valid URLs will appear on your public page.</p>
+            <p class="section-copy">Use the common social labels below, or type any custom button like Pricing, Portfolio, Menu, or Book Now.</p>
           </div>
         </div>
 
-        <% values.links.forEach(link => { %>
+        <% values.links.forEach((link, index) => { %>
+          <% const suggestion = socialLinkSuggestions[index] || socialLinkSuggestions[socialLinkSuggestions.length - 1]; %>
           <div class="link-row">
-            <input name="link_label" value="<%= link.label %>" placeholder="Instagram" />
-            <input name="link_url" value="<%= link.url %>" placeholder="https://instagram.com/yourname" />
+            <input name="link_label" value="<%= link.label %>" placeholder="<%= suggestion.label %>" list="link-label-suggestions" />
+            <input name="link_url" value="<%= link.url %>" placeholder="https://<%= suggestion.placeholder %>" />
           </div>
         <% }) %>
 
@@ -174,6 +192,11 @@
             <% if (preview.phone) { %>
               <p class="contact"><%= preview.phone %></p>
             <% } %>
+
+            <div class="profile-bio-card">
+              <p class="profile-section-label">Bio</p>
+              <p class="bio"><%= preview.bio %></p>
+            </div>
 
             <div class="profile-links">
               <% preview.links.forEach(link => { %>

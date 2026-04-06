@@ -34,6 +34,17 @@
         <div class="success"><%= info %></div>
       <% } %>
 
+      <datalist id="link-label-suggestions">
+        <% socialLinkSuggestions.forEach(option => { %>
+          <option value="<%= option.label %>"></option>
+        <% }) %>
+        <option value="Website"></option>
+        <option value="Store"></option>
+        <option value="Book Now"></option>
+        <option value="Portfolio"></option>
+        <option value="Menu"></option>
+      </datalist>
+
       <% if (ownerUser) { %>
         <div class="card subtle-card">
           <div class="section-header">
@@ -137,7 +148,12 @@
           </div>
         </div>
 
-        <label>Short bio</label>
+        <div class="section-header compact-header">
+          <div>
+            <h2>Bio</h2>
+            <p class="section-copy">Update the about section shown on the public page.</p>
+          </div>
+        </div>
         <textarea name="bio" rows="4"><%= order.bio %></textarea>
 
         <div class="form-grid two">
@@ -202,14 +218,15 @@
         <div class="section-header">
           <div>
             <h2>Buttons and links</h2>
-            <p class="section-copy">Keep at least one live destination on the page.</p>
+            <p class="section-copy">Use the suggested social labels below or enter any custom button label the customer wants.</p>
           </div>
         </div>
 
-        <% order.links.forEach(link => { %>
+        <% order.links.forEach((link, index) => { %>
+          <% const suggestion = socialLinkSuggestions[index] || socialLinkSuggestions[socialLinkSuggestions.length - 1]; %>
           <div class="link-row">
-            <input name="link_label" value="<%= link.label %>" placeholder="Button label" />
-            <input name="link_url" value="<%= link.url %>" placeholder="https://..." />
+            <input name="link_label" value="<%= link.label %>" placeholder="<%= suggestion.label %>" list="link-label-suggestions" />
+            <input name="link_url" value="<%= link.url %>" placeholder="https://<%= suggestion.placeholder %>" />
           </div>
         <% }) %>
 

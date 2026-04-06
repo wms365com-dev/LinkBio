@@ -33,6 +33,17 @@ const THEME_OPTIONS = [
   { value: "sunset", label: "Sunset Pop" }
 ];
 
+const SOCIAL_LINK_SUGGESTIONS = [
+  { label: "Instagram", placeholder: "instagram.com/yourname" },
+  { label: "Facebook", placeholder: "facebook.com/yourpage" },
+  { label: "TikTok", placeholder: "tiktok.com/@yourname" },
+  { label: "LinkedIn", placeholder: "linkedin.com/in/yourname" },
+  { label: "YouTube", placeholder: "youtube.com/@yourchannel" },
+  { label: "X (Twitter)", placeholder: "x.com/yourname" },
+  { label: "WhatsApp", placeholder: "wa.me/15555555555" },
+  { label: "Custom Link", placeholder: "yourdomain.com/anything" }
+];
+
 const THEME_ALIASES = {
   dark: "midnight",
   light: "linen"
@@ -842,6 +853,7 @@ app.use((req, res, next) => {
   res.locals.planName = PLAN_NAME;
   res.locals.planPriceDisplay = PLAN_PRICE_DISPLAY;
   res.locals.themeOptions = THEME_OPTIONS;
+  res.locals.socialLinkSuggestions = SOCIAL_LINK_SUGGESTIONS;
   res.locals.currentCustomer = getCurrentCustomer(req);
   next();
 });

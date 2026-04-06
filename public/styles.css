@@ -379,6 +379,10 @@ p {
   margin-bottom: 18px;
 }
 
+.compact-header {
+  margin-bottom: 12px;
+}
+
 .template-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -671,6 +675,24 @@ th {
 
 .bio {
   margin-top: 12px;
+}
+
+.profile-bio-card {
+  margin-top: 20px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  text-align: left;
+}
+
+.profile-section-label {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.7;
 }
 
 .contact {

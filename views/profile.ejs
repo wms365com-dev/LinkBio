@@ -20,6 +20,11 @@
       <p class="contact"><%= order.phone %></p>
     <% } %>
 
+    <div class="profile-bio-card">
+      <p class="profile-section-label">Bio</p>
+      <p class="bio"><%= order.bio || "This page is getting a bio update soon." %></p>
+    </div>
+
     <div class="profile-links">
       <% order.links.forEach((link, index) => { %>
         <a class="profile-link" href="/r/<%= order.id %>/<%= index %>">
