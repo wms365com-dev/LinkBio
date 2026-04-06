@@ -26,6 +26,8 @@
         <div class="feature-item">Up to 8 call-to-action links</div>
       </div>
 
+      <p class="field-hint">Want the self-serve version instead? <a class="text-link" href="/signup">Create an account</a>.</p>
+
       <% if (stripeEnabled) { %>
         <form method="POST" action="/create-checkout-session">
           <button class="btn" type="submit">Pay <%= offerPriceDisplay %> and continue</button>

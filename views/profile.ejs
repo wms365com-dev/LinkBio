@@ -21,13 +21,34 @@
     <% } %>
 
     <div class="profile-links">
-      <% order.links.forEach(link => { %>
-        <a class="profile-link" href="<%= link.url %>" target="_blank" rel="noreferrer">
+      <% order.links.forEach((link, index) => { %>
+        <a class="profile-link" href="/r/<%= order.id %>/<%= index %>">
           <span><%= link.label %></span>
           <small>Open</small>
         </a>
       <% }) %>
     </div>
+
+    <% if (order.lead_form_enabled) { %>
+      <div class="lead-card">
+        <p class="lead-form-title"><%= order.lead_form_prompt %></p>
+
+        <% if (leadError) { %>
+          <div class="error"><%= leadError %></div>
+        <% } %>
+
+        <% if (leadSuccess) { %>
+          <div class="success"><%= leadSuccess %></div>
+        <% } %>
+
+        <form method="POST" action="/p/<%= order.slug %>/lead" class="form-stack">
+          <input name="name" placeholder="Your name" required />
+          <input name="email" type="email" placeholder="Your email" required />
+          <textarea name="message" rows="4" placeholder="How can they help?" required></textarea>
+          <button class="btn" type="submit">Send message</button>
+        </form>
+      </div>
+    <% } %>
   </div>
 </div>
 

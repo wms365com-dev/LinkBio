@@ -5,6 +5,9 @@ A Railway-ready Express app for selling done-for-you link-in-bio pages.
 ## What it includes
 
 - Marketing landing page
+- Customer signup and login
+- 7-day customer free trial with billing gate
+- Self-serve page studio with publish/unpublish controls
 - Stripe Checkout starter flow
 - Customer intake form with file upload
 - Admin login and order dashboard
@@ -50,6 +53,11 @@ cp .env.example .env
 - `STRIPE_SECRET_KEY`
 - `STRIPE_PRICE_ID`
 - `OFFER_PRICE_DISPLAY`
+- `TRIAL_DAYS`
+- `PLAN_NAME`
+- `PLAN_PRICE_DISPLAY`
+- `BILLING_PRICE_ID`
+- `BILLING_CHECKOUT_MODE`
 
 4. Run the app
 
@@ -70,6 +78,11 @@ Open `http://localhost:3000`
    - `STRIPE_SECRET_KEY`
    - `STRIPE_PRICE_ID`
    - `OFFER_PRICE_DISPLAY`
+   - `TRIAL_DAYS`
+   - `PLAN_NAME`
+   - `PLAN_PRICE_DISPLAY`
+   - `BILLING_PRICE_ID`
+   - `BILLING_CHECKOUT_MODE`
 4. Add a persistent volume and mount it to `/data`.
 5. Deploy.
 
@@ -79,6 +92,7 @@ Open `http://localhost:3000`
 - Uploaded images path: `/data/uploads` on Railway, or `./data/uploads` locally
 - Public upload URLs are served from `/uploads/...`
 - Admin sessions use Express session memory, so they reset after a restart or deploy
+- Customer accounts default to a 7-day in-app trial unless you change `TRIAL_DAYS`
 
 ## Admin login
 

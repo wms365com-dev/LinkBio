@@ -1,0 +1,97 @@
+<%- include("partials/header") %>
+
+<div class="site-shell">
+  <header class="marketing-nav container">
+    <a class="brand-mark" href="/">LinkBio Studio</a>
+    <div class="nav-actions">
+      <% if (!trialExpired) { %>
+        <a class="btn btn-ghost" href="/studio">Back to studio</a>
+      <% } %>
+      <form method="POST" action="/logout">
+        <button class="btn btn-secondary" type="submit">Log out</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="container billing-layout">
+    <section class="card billing-main">
+      <p class="eyebrow"><%= trialExpired ? 'Trial ended' : 'Upgrade anytime' %></p>
+      <h1><%= trialExpired ? 'Continue your page with a paid plan.' : 'Keep your page ready before trial ends.' %></h1>
+      <p class="lead">
+        <% if (trialExpired) { %>
+          Your 7-day free trial ended on <%= user.formatted_trial_end %>. Upgrade to keep editing and publishing your page.
+        <% } else if (user.has_active_plan) { %>
+          Your plan is active. Billing is handled and your page can stay live.
+        <% } else { %>
+          Your trial ends on <%= user.formatted_trial_end %>. Upgrade now so your page stays live without interruption.
+        <% } %>
+      </p>
+
+      <% if (error) { %>
+        <div class="error"><%= error %></div>
+      <% } %>
+
+      <% if (info) { %>
+        <div class="success"><%= info %></div>
+      <% } %>
+
+      <div class="pricing-card">
+        <div>
+          <p class="eyebrow">Plan</p>
+          <h2><%= planName %></h2>
+          <p class="section-copy">Customization, publishing, and ongoing account access.</p>
+        </div>
+        <div class="pricing-amount">
+          <strong><%= planPriceDisplay %></strong>
+        </div>
+      </div>
+
+      <div class="feature-list">
+        <div class="feature-item">Keep editing your page after the 7-day trial</div>
+        <div class="feature-item">Publish and update your page anytime</div>
+        <div class="feature-item">Use custom themes, branding, and button links</div>
+      </div>
+
+      <% if (user.has_active_plan) { %>
+        <a class="btn" href="/studio">Open studio</a>
+      <% } else if (billingConfigured) { %>
+        <form method="POST" action="/billing/create-checkout-session">
+          <button class="btn" type="submit"><%= trialExpired ? 'Pay and continue' : 'Upgrade now' %></button>
+        </form>
+      <% } else { %>
+        <div class="notice">
+          Stripe billing is not configured yet. You can activate accounts manually or wire in your Stripe price first.
+        </div>
+      <% } %>
+    </section>
+
+    <aside class="card billing-side">
+      <p class="eyebrow">Account status</p>
+      <h2><%= user.has_active_plan ? 'Active plan' : (trialExpired ? 'Payment required' : 'Trial running') %></h2>
+      <div class="billing-status-list">
+        <div class="status-row">
+          <span>Status</span>
+          <strong><%= user.billing_status %></strong>
+        </div>
+        <div class="status-row">
+          <span>Trial end</span>
+          <strong><%= user.formatted_trial_end %></strong>
+        </div>
+        <% if (!user.has_active_plan) { %>
+          <div class="status-row">
+            <span>Days remaining</span>
+            <strong><%= user.trial_days_remaining %></strong>
+          </div>
+        <% } %>
+        <% if (order && order.public_url) { %>
+          <div class="status-row">
+            <span>Page URL</span>
+            <strong class="billing-url"><%= order.public_url %></strong>
+          </div>
+        <% } %>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<%- include("partials/footer") %>

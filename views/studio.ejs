@@ -1,0 +1,203 @@
+<%- include("partials/header") %>
+
+<div class="site-shell">
+  <header class="marketing-nav container">
+    <a class="brand-mark" href="/">LinkBio Studio</a>
+    <div class="nav-actions">
+      <% if (order && order.public_url) { %>
+        <a class="btn btn-ghost" href="<%= order.public_url %>" target="_blank" rel="noreferrer">Open page</a>
+      <% } %>
+      <form method="POST" action="/logout">
+        <button class="btn btn-secondary" type="submit">Log out</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="container studio-layout">
+    <section class="card studio-panel">
+      <div class="section-header">
+        <div>
+          <p class="eyebrow">Page studio</p>
+          <h1>Customize your link page</h1>
+          <p class="section-copy">
+            Edit your page, save as a draft, and publish whenever you are ready.
+          </p>
+        </div>
+        <div class="studio-meta">
+          <span class="pill <%= order && order.is_published ? 'pill-live' : '' %>">
+            <%= order && order.is_published ? 'Live' : 'Draft' %>
+          </span>
+          <% if (order && order.public_url) { %>
+            <span class="studio-url"><%= order.public_url %></span>
+          <% } %>
+        </div>
+      </div>
+
+      <% if (!user.has_active_plan) { %>
+        <div class="<%= user.trial_expired ? 'error' : 'notice' %>">
+          <% if (user.trial_expired) { %>
+            Your <%= trialDays %>-day free trial ended on <%= user.formatted_trial_end %>. Upgrade to continue editing.
+          <% } else { %>
+            Trial active. <strong><%= user.trial_days_remaining %></strong> day<%= user.trial_days_remaining === 1 ? '' : 's' %> left.
+            <a class="text-link" href="/billing">Upgrade now</a>
+          <% } %>
+        </div>
+      <% } else { %>
+        <div class="success">
+          Your paid plan is active.
+        </div>
+      <% } %>
+
+      <% if (error) { %>
+        <div class="error"><%= error %></div>
+      <% } %>
+
+      <% if (info) { %>
+        <div class="success"><%= info %></div>
+      <% } %>
+
+      <form method="POST" action="/studio" enctype="multipart/form-data" class="form-stack">
+        <div class="form-grid two">
+          <div>
+            <label>Full name</label>
+            <input name="full_name" value="<%= values.full_name %>" required />
+          </div>
+          <div>
+            <label>Business name</label>
+            <input name="business_name" value="<%= values.business_name %>" required />
+          </div>
+        </div>
+
+        <div class="form-grid two">
+          <div>
+            <label>Account email</label>
+            <input value="<%= values.email %>" disabled />
+            <p class="field-hint">Email changes are not part of this MVP.</p>
+          </div>
+          <div>
+            <label>Public slug</label>
+            <input name="slug" value="<%= values.slug %>" placeholder="your-brand" />
+          </div>
+        </div>
+
+        <label>Short bio</label>
+        <textarea name="bio" rows="4" placeholder="Tell visitors what you do."><%= values.bio %></textarea>
+
+        <div class="form-grid two">
+          <div>
+            <label>Phone or WhatsApp</label>
+            <input name="phone" value="<%= values.phone %>" placeholder="+1 555 555 5555" />
+          </div>
+          <div>
+            <label>Accent color</label>
+            <input name="accent_color" type="color" value="<%= values.accent_color %>" />
+          </div>
+        </div>
+
+        <label>Theme</label>
+        <select name="theme">
+          <% themeOptions.forEach(option => { %>
+            <option value="<%= option.value %>" <%= values.theme === option.value ? 'selected' : '' %>><%= option.label %></option>
+          <% }) %>
+        </select>
+
+        <div class="feature-toggle">
+          <label class="checkbox-row">
+            <input type="checkbox" name="lead_form_enabled" value="1" <%= values.lead_form_enabled ? 'checked' : '' %> />
+            Turn on lead capture form
+          </label>
+          <p class="field-hint">Visitors can send their name, email, and message straight from the page.</p>
+        </div>
+
+        <label>Lead form headline</label>
+        <input name="lead_form_prompt" value="<%= values.lead_form_prompt %>" placeholder="Send me a quick message" />
+
+        <label>Upload photo or logo</label>
+        <input name="profile_image" type="file" accept="image/*" />
+
+        <% if (values.profile_image) { %>
+          <img class="preview-img" src="<%= values.profile_image %>" alt="Current profile image" />
+          <label class="checkbox-row">
+            <input type="checkbox" name="remove_profile_image" value="1" />
+            Remove current image
+          </label>
+        <% } %>
+
+        <div class="section-header">
+          <div>
+            <h2>Buttons and links</h2>
+            <p class="section-copy">Buttons with labels and valid URLs will appear on your public page.</p>
+          </div>
+        </div>
+
+        <% values.links.forEach(link => { %>
+          <div class="link-row">
+            <input name="link_label" value="<%= link.label %>" placeholder="Instagram" />
+            <input name="link_url" value="<%= link.url %>" placeholder="https://instagram.com/yourname" />
+          </div>
+        <% }) %>
+
+        <div class="actions studio-actions">
+          <button class="btn btn-secondary" type="submit" name="intent" value="save_draft">Save draft</button>
+          <% if (order && order.is_published) { %>
+            <button class="btn btn-ghost" type="submit" name="intent" value="unpublish">Unpublish</button>
+            <button class="btn" type="submit" name="intent" value="publish">Update live page</button>
+          <% } else { %>
+            <button class="btn" type="submit" name="intent" value="publish">Publish page</button>
+          <% } %>
+        </div>
+        <p class="field-hint">Saving a draft keeps the page private until you publish it.</p>
+      </form>
+    </section>
+
+    <aside class="card studio-preview-panel">
+      <div class="section-header">
+        <div>
+          <p class="eyebrow">Preview</p>
+          <h2>How your page looks</h2>
+        </div>
+      </div>
+
+      <div class="studio-preview-shell">
+        <div class="profile-page profile-page-embedded profile-theme-<%= preview.theme %>" style="--accent:<%= preview.accent_color %>;">
+          <div class="profile-card">
+            <% if (preview.profile_image) { %>
+              <img class="avatar" src="<%= preview.profile_image %>" alt="<%= preview.business_name %>" />
+            <% } else { %>
+              <div class="avatar avatar-placeholder"><span><%= (preview.business_name || 'L').charAt(0).toUpperCase() %></span></div>
+            <% } %>
+
+            <p class="profile-tag">Preview</p>
+            <h2><%= preview.business_name %></h2>
+            <p class="bio"><%= preview.bio %></p>
+
+            <% if (preview.phone) { %>
+              <p class="contact"><%= preview.phone %></p>
+            <% } %>
+
+            <div class="profile-links">
+              <% preview.links.forEach(link => { %>
+                <div class="profile-link profile-link-static">
+                  <span><%= link.label %></span>
+                  <small>Tap</small>
+                </div>
+              <% }) %>
+            </div>
+
+            <% if (preview.lead_form_enabled) { %>
+              <div class="lead-preview-card">
+                <p class="lead-preview-title"><%= preview.lead_form_prompt %></p>
+                <div class="lead-preview-input">Name</div>
+                <div class="lead-preview-input">Email</div>
+                <div class="lead-preview-input lead-preview-textarea">Message</div>
+                <div class="lead-preview-button">Send message</div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<%- include("partials/footer") %>

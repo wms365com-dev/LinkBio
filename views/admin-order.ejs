@@ -34,6 +34,86 @@
         <div class="success"><%= info %></div>
       <% } %>
 
+      <% if (ownerUser) { %>
+        <div class="card subtle-card">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Customer account</p>
+              <h2><%= ownerUser.name %></h2>
+            </div>
+            <div class="actions">
+              <% if (ownerUser.has_active_plan) { %>
+                <form method="POST" action="/admin/customer/<%= ownerUser.id %>/deactivate">
+                  <button class="btn btn-secondary" type="submit">Mark payment required</button>
+                </form>
+              <% } else { %>
+                <form method="POST" action="/admin/customer/<%= ownerUser.id %>/activate">
+                  <button class="btn" type="submit">Activate paid access</button>
+                </form>
+              <% } %>
+            </div>
+          </div>
+          <div class="billing-status-list">
+            <div class="status-row">
+              <span>Billing</span>
+              <strong><%= ownerUser.billing_status %></strong>
+            </div>
+            <div class="status-row">
+              <span>Trial end</span>
+              <strong><%= ownerUser.formatted_trial_end %></strong>
+            </div>
+            <div class="status-row">
+              <span>Email</span>
+              <strong><%= ownerUser.email %></strong>
+            </div>
+          </div>
+        </div>
+      <% } %>
+
+      <div class="card subtle-card">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Insights</p>
+            <h2>Clicks and leads</h2>
+          </div>
+        </div>
+        <div class="billing-status-list">
+          <div class="status-row">
+            <span>Total tracked events</span>
+            <strong><%= analyticsSummary.total %></strong>
+          </div>
+          <div class="status-row">
+            <span>Link clicks</span>
+            <strong><%= analyticsSummary.clicks %></strong>
+          </div>
+          <div class="status-row">
+            <span>Lead submissions</span>
+            <strong><%= recentLeads.length %></strong>
+          </div>
+        </div>
+      </div>
+
+      <% if (recentLeads.length > 0) { %>
+        <div class="card subtle-card">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Recent leads</p>
+              <h2>Latest messages</h2>
+            </div>
+          </div>
+          <div class="lead-list">
+            <% recentLeads.forEach(lead => { %>
+              <article class="lead-item">
+                <strong><%= lead.name %></strong>
+                <span><%= lead.email %></span>
+                <p><%= lead.message %></p>
+                <small><%= lead.formatted_created_at %></small>
+              </article>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
       <form method="POST" action="/admin/order/<%= order.id %>/update" enctype="multipart/form-data" class="form-stack">
         <div class="form-grid two">
           <div>
@@ -97,6 +177,16 @@
             </select>
           </div>
         </div>
+
+        <div class="feature-toggle">
+          <label class="checkbox-row">
+            <input type="checkbox" name="lead_form_enabled" value="1" <%= order.lead_form_enabled ? 'checked' : '' %> />
+            Enable lead capture form
+          </label>
+        </div>
+
+        <label>Lead form headline</label>
+        <input name="lead_form_prompt" value="<%= order.lead_form_prompt %>" placeholder="Send me a quick message" />
 
         <label>Replace profile image or logo</label>
         <input name="profile_image" type="file" accept="image/*" />

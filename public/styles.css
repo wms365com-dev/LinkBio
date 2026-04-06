@@ -132,6 +132,14 @@ select:focus {
   backdrop-filter: blur(14px);
 }
 
+.subtle-card {
+  margin: 0 0 22px;
+  padding: 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: none;
+}
+
 .hero-card {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
@@ -465,6 +473,13 @@ p {
   margin-bottom: 22px;
 }
 
+.feature-toggle {
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.52);
+  border: 1px solid rgba(29, 26, 23, 0.08);
+}
+
 .feature-item {
   padding: 14px 16px;
   border-radius: 18px;
@@ -687,6 +702,63 @@ th {
   opacity: 0.68;
 }
 
+.lead-card,
+.lead-preview-card {
+  margin-top: 22px;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  text-align: left;
+}
+
+.lead-form-title,
+.lead-preview-title {
+  margin-bottom: 12px;
+  font-weight: 800;
+}
+
+.lead-preview-input,
+.lead-preview-button {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.14);
+  font-weight: 600;
+}
+
+.lead-preview-textarea {
+  min-height: 76px;
+}
+
+.lead-preview-button {
+  background: var(--accent);
+  color: #fff;
+  text-align: center;
+}
+
+.lead-list {
+  display: grid;
+  gap: 14px;
+}
+
+.lead-item {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(29, 26, 23, 0.08);
+}
+
+.lead-item span,
+.lead-item small {
+  display: block;
+  color: var(--muted);
+}
+
+.lead-item p {
+  margin: 10px 0;
+}
+
 .profile-theme-midnight {
   background: linear-gradient(180deg, #080c17 0%, #120f25 100%);
   color: #fff;
@@ -776,8 +848,159 @@ th {
   background: rgba(231, 111, 81, 0.24);
 }
 
+.field-hint,
+.auth-switch,
+.studio-url {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.field-hint {
+  margin-top: -6px;
+  font-size: 14px;
+}
+
+.auth-switch {
+  margin-top: 18px;
+}
+
+.auth-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.95fr) minmax(340px, 1.05fr);
+  gap: 22px;
+}
+
+.auth-grid-compact {
+  grid-template-columns: minmax(320px, 520px);
+  justify-content: center;
+}
+
+.auth-copy-card,
+.auth-form-card {
+  min-height: 100%;
+}
+
+.studio-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.billing-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.studio-panel,
+.studio-preview-panel,
+.billing-main,
+.billing-side {
+  margin-bottom: 0;
+}
+
+.studio-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: end;
+  gap: 10px;
+}
+
+.studio-url {
+  max-width: 260px;
+  text-align: right;
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.studio-actions {
+  align-items: stretch;
+}
+
+.studio-preview-shell {
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid rgba(29, 26, 23, 0.08);
+}
+
+.pricing-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 22px 0 18px;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(29, 26, 23, 0.08);
+}
+
+.pricing-amount strong {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 38px;
+}
+
+.billing-status-list {
+  display: grid;
+  gap: 14px;
+}
+
+.status-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(29, 26, 23, 0.08);
+}
+
+.status-row span {
+  color: var(--muted);
+}
+
+.status-row strong {
+  text-align: right;
+}
+
+.billing-url {
+  max-width: 220px;
+  word-break: break-word;
+}
+
+.profile-page-embedded {
+  min-height: auto;
+  padding: 18px;
+}
+
+.profile-page-embedded .profile-card {
+  width: 100%;
+  max-width: none;
+  box-shadow: none;
+}
+
+.profile-link-static {
+  cursor: default;
+}
+
+.avatar-placeholder {
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.avatar-placeholder span {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 38px;
+  font-weight: 700;
+}
+
 @media (max-width: 920px) {
   .hero-card,
+  .studio-layout,
+  .billing-layout,
+  .auth-grid,
   .template-grid,
   .grid.three,
   .grid.four,
@@ -797,9 +1020,25 @@ th {
   .section-header,
   .offer-banner,
   .marketing-nav,
-  .simple-nav {
+  .simple-nav,
+  .studio-meta {
     align-items: start;
     flex-direction: column;
+  }
+
+  .studio-url {
+    max-width: none;
+    text-align: left;
+  }
+
+  .pricing-card,
+  .status-row {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .status-row strong {
+    text-align: left;
   }
 }
 
