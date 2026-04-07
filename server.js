@@ -20,7 +20,7 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || "";
 const OFFER_PRICE_DISPLAY = process.env.OFFER_PRICE_DISPLAY || "$1";
 const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 7);
-const PLAN_NAME = process.env.PLAN_NAME || "LinkBio Pro";
+const PLAN_NAME = process.env.PLAN_NAME || "myurlc.com Pro";
 const PLAN_PRICE_DISPLAY = process.env.PLAN_PRICE_DISPLAY || "$9/month";
 const BILLING_PRICE_ID = process.env.BILLING_PRICE_ID || STRIPE_PRICE_ID;
 const BILLING_CHECKOUT_MODE = process.env.BILLING_CHECKOUT_MODE || "payment";
@@ -658,8 +658,18 @@ function iconSvg(name) {
     brand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.9 5.4L19 9.3l-4.1 3 1.6 5.3L12 14.4 7.5 17.6l1.6-5.3-4.1-3 5.1-1.9L12 2z" fill="currentColor"/></svg>',
     share: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5h4v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 14L19 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 13v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     subscribe: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a2.5 2.5 0 0 0 2.3-1.5h-4.6A2.5 2.5 0 0 0 12 21z" fill="currentColor"/><path d="M18 16H6l1.4-1.7V10a4.6 4.6 0 1 1 9.2 0v4.3L18 16z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    instagram: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3.6" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17.1" cy="6.9" r="1" fill="currentColor"/></svg>',
+    facebook: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 20v-6h2.4l.4-3h-2.8V9.2c0-.9.3-1.5 1.6-1.5h1.4V5.1c-.2 0-1-.1-2-.1-2 0-3.4 1.2-3.4 3.5V11H9v3h2.5v6h2z" fill="currentColor"/></svg>',
+    tiktok: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5c.7 1.2 1.8 2.1 3.2 2.4v2.4c-1.2 0-2.3-.4-3.2-1.1V14a4.5 4.5 0 1 1-4.5-4.5c.3 0 .5 0 .8.1V12a2.3 2.3 0 1 0 1.5 2.1V4.9h2.2z" fill="currentColor"/></svg>',
+    linkedin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 8.7A1.4 1.4 0 1 0 7.2 6a1.4 1.4 0 0 0 0 2.7zM6 10.2h2.4V18H6v-7.8zM10 10.2h2.3v1.1h.1c.3-.6 1.1-1.4 2.4-1.4 2.5 0 2.9 1.6 2.9 3.8V18h-2.4v-3.8c0-.9 0-2.1-1.3-2.1s-1.5 1-1.5 2V18H10v-7.8z" fill="currentColor"/></svg>',
+    youtube: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 8.5c-.2-.9-.9-1.6-1.8-1.8C16.7 6.3 12 6.3 12 6.3s-4.7 0-6.2.4c-.9.2-1.6.9-1.8 1.8-.4 1.5-.4 3.5-.4 3.5s0 2 .4 3.5c.2.9.9 1.6 1.8 1.8 1.5.4 6.2.4 6.2.4s4.7 0 6.2-.4c.9-.2 1.6-.9 1.8-1.8.4-1.5.4-3.5.4-3.5s0-2-.4-3.5z" fill="currentColor"/><path d="M10.3 14.7v-5.4l4.7 2.7-4.7 2.7z" fill="#fff"/></svg>',
+    x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h3.4l3 4.2L16 5h2.2l-4.7 5.5L19 19h-3.4l-3.2-4.6L8.4 19H6.1l5.1-6-5.2-8z" fill="currentColor"/></svg>',
     text: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6.5h12a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H11l-4 3v-3H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 10h7M8.5 13h4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    whatsapp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a8 8 0 0 0-6.9 12l-1.1 4 4.1-1.1A8 8 0 1 0 12 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.7 9.5c.2-.4.4-.4.6-.4h.5c.2 0 .4 0 .5.5l.4 1.1c.1.3.1.5-.1.7l-.3.4c-.1.1-.2.3 0 .6.2.4.9 1.4 2.1 1.9.3.1.5 0 .6-.1l.5-.5c.2-.2.4-.2.7-.1l1 .5c.3.1.4.3.4.5v.5c0 .2-.1.4-.4.6-.3.2-1 .5-1.8.3-1-.2-2.1-.9-3.4-2.2-1.5-1.5-2.2-3-2.3-4-.1-.7.2-1.4.5-1.8z" fill="currentColor"/></svg>'
+    whatsapp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a8 8 0 0 0-6.9 12l-1.1 4 4.1-1.1A8 8 0 1 0 12 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.7 9.5c.2-.4.4-.4.6-.4h.5c.2 0 .4 0 .5.5l.4 1.1c.1.3.1.5-.1.7l-.3.4c-.1.1-.2.3 0 .6.2.4.9 1.4 2.1 1.9.3.1.5 0 .6-.1l.5-.5c.2-.2.4-.2.7-.1l1 .5c.3.1.4.3.4.5v.5c0 .2-.1.4-.4.6-.3.2-1 .5-1.8.3-1-.2-2.1-.9-3.4-2.2-1.5-1.5-2.2-3-2.3-4-.1-.7.2-1.4.5-1.8z" fill="currentColor"/></svg>',
+    email: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 8l6.5 5 6.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    phone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.8 4.8h2.4l1.1 3.1-1.5 1.5c.8 1.6 2.1 2.9 3.7 3.7l1.5-1.5 3.1 1.1v2.4c0 .8-.7 1.5-1.5 1.5C10.1 16.6 7.4 13.9 7.4 8.4c0-.8.6-1.5 1.4-1.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    custom: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 12h16M12 4c2.2 2.2 3.3 5 3.3 8s-1.1 5.8-3.3 8c-2.2-2.2-3.3-5-3.3-8s1.1-5.8 3.3-8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="6.5" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="17.5" r="1.6" fill="currentColor"/></svg>'
   };
 
   return icons[name] || icons.brand;
@@ -1207,6 +1217,8 @@ function toOrderViewModel(row) {
   const linkCollections = buildLinkCollections(readLinks(row.links_json), { orderId: row.id });
   const profileMedia = row.profile_media || row.profile_image || null;
   const profileMediaType = normalizeMediaType(row.profile_media_type) || (profileMedia ? "image" : null);
+  const owner = row.owner_user_id ? getUserById(row.owner_user_id) : null;
+  const ownerReferralCode = owner ? sanitizeReferralCode(owner.referral_code) : "";
 
   return {
     ...row,
@@ -1222,7 +1234,8 @@ function toOrderViewModel(row) {
     profile_image: profileMediaType === "image" ? profileMedia : row.profile_image || null,
     background_image: row.background_image || null,
     is_published: row.is_published ? 1 : 0,
-    public_url: `${BASE_URL}/p/${row.slug}`
+    public_url: `${BASE_URL}/p/${row.slug}`,
+    owner_referral_share_url: ownerReferralCode ? `${BASE_URL}/ref/${encodeURIComponent(ownerReferralCode)}` : ""
   };
 }
 
@@ -1548,7 +1561,7 @@ app.get("/", (req, res) => {
       const firstName = String(user.name || "Someone").trim().split(/\s+/)[0] || "Someone";
       return {
         business_name: user.business_name || "New brand",
-        message: `${firstName} from ${user.business_name || "a new brand"} just started a LinkBio page.`,
+        message: `${firstName} from ${user.business_name || "a new brand"} just started a myurlc.com page.`,
         relative_created_at: formatRelativeTime(user.created_at),
         created_at: user.created_at
       };
@@ -2302,7 +2315,7 @@ app.use((error, req, res, next) => {
 
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`LinkBio MVP running on port ${PORT}`);
+    console.log(`myurlc.com app running on port ${PORT}`);
   });
 }
 

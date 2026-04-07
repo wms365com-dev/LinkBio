@@ -25,7 +25,7 @@
   });
 
   document.querySelectorAll("[data-share-page]").forEach((button) => {
-    const defaultLabel = button.querySelector("span:last-child");
+    const defaultLabel = button.querySelector("[data-share-label]");
     const url = button.dataset.shareUrl || window.location.href;
     const title = button.dataset.shareTitle || document.title;
     const text = button.dataset.shareText || `Check out ${title}`;

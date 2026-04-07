@@ -2,7 +2,7 @@
 
 <div class="site-shell">
   <header class="marketing-nav container">
-    <a class="brand-mark" href="/">LinkBio Studio</a>
+    <a class="brand-mark" href="/">myurlc.com</a>
     <div class="nav-actions">
       <% if (order && order.public_url) { %>
         <a class="btn btn-ghost" href="<%= order.public_url %>" target="_blank" rel="noreferrer">Open page</a>
@@ -252,6 +252,9 @@
       <div class="studio-preview-shell">
         <% const previewContactActions = buildPhoneContactActions(preview.phone); %>
         <% const previewSubscribeHref = preview.lead_form_enabled ? '#preview-subscribe' : '#preview-join' %>
+        <% const showPreviewSectionLabels = preview.link_sections.length > 1; %>
+        <% const previewVisibleName = preview.business_name || preview.full_name || preview.slug; %>
+        <% const showPreviewVisibleName = previewVisibleName && previewVisibleName.toLowerCase() !== preview.slug.toLowerCase(); %>
         <div class="profile-page profile-page-embedded profile-theme-<%= preview.theme %>" style="--accent:<%= preview.accent_color %>;">
           <% if (preview.background_image) { %>
             <div class="profile-backdrop" style="background-image:url('<%= preview.background_image %>');"></div>
@@ -261,17 +264,15 @@
 
           <div class="profile-shell">
             <div class="profile-topbar">
-              <div class="profile-home-link profile-home-link-static" aria-hidden="true">
+              <div class="profile-action-button profile-home-link profile-home-link-static" aria-hidden="true">
                 <span class="icon-svg"><%- iconSvg("brand") %></span>
               </div>
               <div class="profile-top-actions">
-                <a class="profile-pill-button profile-pill-button-static" href="<%= previewSubscribeHref %>">
+                <a class="profile-action-button profile-action-button-static" href="<%= previewSubscribeHref %>">
                   <span class="icon-svg"><%- iconSvg("subscribe") %></span>
-                  <span>Subscribe</span>
                 </a>
-                <button class="profile-pill-button profile-pill-button-ghost profile-pill-button-static" type="button">
+                <button class="profile-action-button profile-action-button-ghost profile-action-button-static" type="button">
                   <span class="icon-svg"><%- iconSvg("share") %></span>
-                  <span>Share</span>
                 </button>
               </div>
             </div>
@@ -289,37 +290,31 @@
                 <% } %>
               </div>
 
-              <h2><%= preview.business_name %></h2>
-
-              <div class="profile-bio-card">
-                <p class="profile-section-label">Bio</p>
-                <p class="bio"><%= preview.bio %></p>
-              </div>
-
-              <% if (previewContactActions.length > 0 || preview.social_links.length > 0) { %>
-                <div class="social-strip">
-                  <% previewContactActions.forEach(action => { %>
-                    <div class="social-icon social-icon-static social-icon-<%= action.platform %>" title="<%= action.label %>">
-                      <span class="icon-svg"><%- iconSvg(action.icon) %></span>
-                    </div>
-                  <% }) %>
-                  <% preview.social_links.forEach(link => { %>
-                    <div class="social-icon social-icon-static social-icon-<%= link.platform %>" title="<%= link.label %>">
-                      <span class="social-icon-mark"><%= link.icon_text %></span>
-                    </div>
-                  <% }) %>
-                </div>
+              <% if (showPreviewVisibleName) { %>
+                <p class="profile-display-name"><%= previewVisibleName %></p>
               <% } %>
+              <h2 class="profile-handle">@<%= preview.slug %></h2>
+
+              <p class="bio profile-bio-inline"><%= preview.bio %></p>
 
               <div class="section-stack">
                 <% preview.link_sections.forEach(section => { %>
-                  <section class="link-section-card">
-                    <p class="profile-section-label"><%= section.label %></p>
+                  <section class="link-section-card link-section-card-flat">
+                    <% if (showPreviewSectionLabels) { %>
+                      <p class="profile-section-label profile-section-label-public"><%= section.label %></p>
+                    <% } %>
                     <div class="profile-links">
                       <% section.links.forEach(link => { %>
                         <div class="profile-link profile-link-static">
-                          <span><%= link.label %></span>
-                          <small>Open</small>
+                          <span class="profile-link-leading">
+                            <span class="profile-link-icon">
+                              <span class="icon-svg"><%- iconSvg(link.platform) %></span>
+                            </span>
+                            <span class="profile-link-copy"><%= link.label %></span>
+                          </span>
+                          <span class="profile-link-trailing" aria-hidden="true">
+                            <span class="icon-svg"><%- iconSvg("more") %></span>
+                          </span>
                         </div>
                       <% }) %>
                     </div>
@@ -337,7 +332,22 @@
                 </div>
               <% } %>
 
-              <a class="profile-platform-cta profile-platform-cta-static" id="preview-join" href="#preview-join">Join <%= preview.slug %> on BioLink</a>
+              <% if (previewContactActions.length > 0 || preview.social_links.length > 0) { %>
+                <div class="social-strip social-strip-lower">
+                  <% previewContactActions.forEach(action => { %>
+                    <div class="social-icon social-icon-static social-icon-<%= action.platform %>" title="<%= action.label %>">
+                      <span class="icon-svg"><%- iconSvg(action.icon) %></span>
+                    </div>
+                  <% }) %>
+                  <% preview.social_links.forEach(link => { %>
+                    <div class="social-icon social-icon-static social-icon-<%= link.platform %>" title="<%= link.label %>">
+                      <span class="icon-svg"><%- iconSvg(link.platform) %></span>
+                    </div>
+                  <% }) %>
+                </div>
+              <% } %>
+
+              <a class="profile-platform-cta profile-platform-cta-static" id="preview-join" href="#preview-join">Join <%= preview.slug %> on myurlc.com</a>
             </div>
           </div>
         </div>

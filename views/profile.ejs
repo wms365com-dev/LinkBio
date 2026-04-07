@@ -2,6 +2,10 @@
 
 <% const contactActions = buildPhoneContactActions(order.phone); %>
 <% const subscribeHref = order.lead_form_enabled ? '#subscribe' : '/signup'; %>
+<% const showSectionLabels = order.link_sections.length > 1; %>
+<% const joinHref = order.owner_referral_share_url || '/signup'; %>
+<% const visibleName = order.business_name || order.full_name || order.slug; %>
+<% const showVisibleName = visibleName && visibleName.toLowerCase() !== order.slug.toLowerCase(); %>
 
 <div class="profile-page profile-theme-<%= order.theme %>" style="--accent:<%= order.accent_color %>;">
   <% if (order.background_image) { %>
@@ -12,25 +16,24 @@
 
   <div class="profile-shell">
     <div class="profile-topbar">
-      <a class="profile-home-link" href="/" aria-label="Back to BioLink home" title="Back to BioLink">
+      <a class="profile-action-button profile-home-link" href="/" aria-label="Back to myurlc.com home" title="Back to myurlc.com">
         <span class="icon-svg"><%- iconSvg("brand") %></span>
       </a>
       <div class="profile-top-actions">
-        <a class="profile-pill-button" href="<%= subscribeHref %>">
+        <a class="profile-action-button" href="<%= subscribeHref %>" aria-label="Subscribe" title="Subscribe">
           <span class="icon-svg"><%- iconSvg("subscribe") %></span>
-          <span>Subscribe</span>
         </a>
         <button
-          class="profile-pill-button profile-pill-button-ghost"
+          class="profile-action-button profile-action-button-ghost"
           type="button"
           data-share-page
           data-share-url="<%= order.public_url %>"
           data-share-title="<%= order.business_name %>"
-          data-share-text="Check out <%= order.business_name %> on BioLink"
+          data-share-text="Check out <%= order.business_name %> on myurlc.com"
+          aria-label="Share this page"
           title="Share this page"
         >
           <span class="icon-svg"><%- iconSvg("share") %></span>
-          <span>Share</span>
         </button>
       </div>
     </div>
@@ -48,37 +51,31 @@
         <% } %>
       </div>
 
-      <h1><%= order.business_name %></h1>
-
-      <div class="profile-bio-card">
-        <p class="profile-section-label">Bio</p>
-        <p class="bio"><%= order.bio || "This page is getting a bio update soon." %></p>
-      </div>
-
-      <% if (contactActions.length > 0 || order.social_links.length > 0) { %>
-        <div class="social-strip">
-          <% contactActions.forEach(action => { %>
-            <a class="social-icon social-icon-<%= action.platform %>" href="<%= action.href %>" aria-label="<%= action.label %>" title="<%= action.label %>">
-              <span class="icon-svg"><%- iconSvg(action.icon) %></span>
-            </a>
-          <% }) %>
-          <% order.social_links.forEach(link => { %>
-            <a class="social-icon social-icon-<%= link.platform %>" href="<%= link.href %>" aria-label="<%= link.label %>" title="<%= link.label %>">
-              <span class="social-icon-mark"><%= link.icon_text %></span>
-            </a>
-          <% }) %>
-        </div>
+      <% if (showVisibleName) { %>
+        <p class="profile-display-name"><%= visibleName %></p>
       <% } %>
+      <h1 class="profile-handle">@<%= order.slug %></h1>
+
+      <p class="bio profile-bio-inline"><%= order.bio || "This page is getting a bio update soon." %></p>
 
       <div class="section-stack">
         <% order.link_sections.forEach(section => { %>
-          <section class="link-section-card">
-            <p class="profile-section-label"><%= section.label %></p>
+          <section class="link-section-card link-section-card-flat">
+            <% if (showSectionLabels) { %>
+              <p class="profile-section-label profile-section-label-public"><%= section.label %></p>
+            <% } %>
             <div class="profile-links">
               <% section.links.forEach(link => { %>
                 <a class="profile-link" href="<%= link.href %>">
-                  <span><%= link.label %></span>
-                  <small>Open</small>
+                  <span class="profile-link-leading">
+                    <span class="profile-link-icon">
+                      <span class="icon-svg"><%- iconSvg(link.platform) %></span>
+                    </span>
+                    <span class="profile-link-copy"><%= link.label %></span>
+                  </span>
+                  <span class="profile-link-trailing" aria-hidden="true">
+                    <span class="icon-svg"><%- iconSvg("more") %></span>
+                  </span>
                 </a>
               <% }) %>
             </div>
@@ -107,7 +104,22 @@
         </div>
       <% } %>
 
-      <a class="profile-platform-cta" id="join-biolink" href="/signup">Join <%= order.slug %> on BioLink</a>
+      <% if (contactActions.length > 0 || order.social_links.length > 0) { %>
+        <div class="social-strip social-strip-lower">
+          <% contactActions.forEach(action => { %>
+            <a class="social-icon social-icon-<%= action.platform %>" href="<%= action.href %>" aria-label="<%= action.label %>" title="<%= action.label %>">
+              <span class="icon-svg"><%- iconSvg(action.icon) %></span>
+            </a>
+          <% }) %>
+          <% order.social_links.forEach(link => { %>
+            <a class="social-icon social-icon-<%= link.platform %>" href="<%= link.href %>" aria-label="<%= link.label %>" title="<%= link.label %>">
+              <span class="icon-svg"><%- iconSvg(link.platform) %></span>
+            </a>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <a class="profile-platform-cta" id="join-biolink" href="<%= joinHref %>">Join <%= order.slug %> on myurlc.com</a>
     </div>
   </div>
 </div>

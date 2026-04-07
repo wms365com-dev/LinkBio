@@ -2,7 +2,7 @@
 
 <div class="site-shell">
   <header class="marketing-nav container">
-    <a class="brand-mark" href="/">LinkBio Studio</a>
+    <a class="brand-mark" href="/">myurlc.com</a>
     <div class="nav-actions">
       <% if (currentCustomer) { %>
         <a class="btn btn-ghost" href="<%= currentCustomer.can_access_studio ? '/studio' : '/billing' %>"><%= currentCustomer.can_access_studio ? 'Open Studio' : 'Billing' %></a>
@@ -13,7 +13,6 @@
         <a class="btn btn-ghost" href="/login">Log In</a>
         <a class="btn" href="/signup">Sign Up</a>
       <% } %>
-      <a class="btn btn-ghost" href="/admin/login">Admin</a>
     </div>
   </header>
 
@@ -33,7 +32,6 @@
         <div class="hero-badges">
           <span><%= trialDays %>-day free trial</span>
           <span>Self-serve page builder</span>
-          <span>Railway-ready hosting</span>
           <span>Customer signup + login</span>
           <span>Admin-managed back office</span>
         </div>

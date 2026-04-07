@@ -756,17 +756,17 @@ th {
   position: relative;
   z-index: 1;
   width: 100%;
-  padding: 34px 24px 26px;
-  border-radius: 30px;
+  padding: 18px 8px 28px;
+  border-radius: 0;
   text-align: center;
-  box-shadow: 0 24px 70px rgba(14, 13, 20, 0.2);
-  backdrop-filter: blur(16px);
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .profile-shell {
   position: relative;
   z-index: 1;
-  width: min(540px, 100%);
+  width: min(460px, 100%);
 }
 
 .profile-topbar {
@@ -774,48 +774,45 @@ th {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 20px;
 }
 
 .profile-top-actions {
   display: flex;
   align-items: center;
   justify-content: end;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.profile-home-link,
-.profile-pill-button {
+.profile-action-button,
+.profile-home-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 46px;
-  padding: 0 16px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.12);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
   color: inherit;
-  font-weight: 800;
 }
 
 .profile-home-link {
-  width: 46px;
-  min-width: 46px;
-  padding: 0;
+  margin-right: auto;
 }
 
-.profile-pill-button {
+.profile-action-button {
   cursor: pointer;
 }
 
-.profile-pill-button-ghost {
+.profile-action-button-ghost {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.profile-pill-button-static,
+.profile-action-button-static,
 .profile-home-link-static {
   pointer-events: none;
 }
@@ -836,7 +833,7 @@ th {
 .profile-media-shell {
   display: flex;
   justify-content: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .profile-tag {
@@ -849,29 +846,43 @@ th {
 
 .avatar {
   display: block;
-  width: 110px;
-  height: 110px;
+  width: 98px;
+  height: 98px;
   margin: 0 auto;
   object-fit: cover;
   border-radius: 999px;
-  border: 4px solid var(--accent);
+  border: 4px solid rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 32px rgba(22, 20, 16, 0.16);
 }
 
 .avatar-video {
   background: rgba(0, 0, 0, 0.24);
 }
 
+.profile-display-name {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.4;
+  opacity: 0.72;
+}
+
+.profile-handle {
+  margin: 0;
+  font-size: clamp(2rem, 6vw, 2.85rem);
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+}
+
 .bio {
   margin-top: 12px;
 }
 
-.profile-bio-card {
-  margin-top: 20px;
-  padding: 16px 18px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  text-align: left;
+.profile-bio-inline {
+  width: min(100%, 320px);
+  margin: 14px auto 0;
+  font-size: 1.05rem;
+  line-height: 1.55;
 }
 
 .profile-section-label {
@@ -883,24 +894,33 @@ th {
   opacity: 0.7;
 }
 
+.profile-section-label-public {
+  padding-left: 4px;
+  text-align: left;
+}
+
 .social-strip {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 10px;
-  margin-top: 18px;
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.social-strip-lower {
+  margin-top: 30px;
 }
 
 .social-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 50px;
-  height: 50px;
+  width: 52px;
+  height: 52px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .social-icon-static {
@@ -918,14 +938,14 @@ th {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-top: 24px;
-  min-height: 54px;
-  padding: 0 22px;
+  margin-top: 34px;
+  min-height: 56px;
+  padding: 0 28px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.94);
   color: #1d1a17;
   font-weight: 800;
-  box-shadow: 0 12px 30px rgba(14, 13, 20, 0.18);
+  box-shadow: 0 16px 36px rgba(14, 13, 20, 0.18);
 }
 
 .profile-platform-cta-static {
@@ -934,23 +954,28 @@ th {
 
 .section-stack {
   display: grid;
-  gap: 16px;
-  margin-top: 22px;
+  gap: 18px;
+  margin-top: 28px;
 }
 
 .link-section-card {
-  padding: 16px 18px;
-  border-radius: 22px;
+  padding: 0;
+  border-radius: 0;
   text-align: left;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  border: none;
+}
+
+.link-section-card-flat {
+  background: transparent;
+  border: none;
 }
 
 .profile-links {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 12px;
+  gap: 14px;
+  margin-top: 0;
 }
 
 .profile-link {
@@ -958,9 +983,47 @@ th {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 15px 18px;
-  border-radius: 20px;
+  min-height: 72px;
+  padding: 14px 16px;
+  border-radius: 18px;
   font-weight: 800;
+  text-align: left;
+  box-shadow: 0 16px 28px rgba(14, 13, 20, 0.14);
+}
+
+.profile-link-leading {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex: 1;
+}
+
+.profile-link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.profile-link-copy {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-link-trailing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  opacity: 0.82;
 }
 
 .profile-link small {
@@ -1033,8 +1096,8 @@ th {
 }
 
 .profile-theme-midnight .profile-card {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  border: none;
 }
 
 .profile-theme-midnight .profile-tag,
@@ -1044,13 +1107,13 @@ th {
 }
 
 .profile-theme-midnight .profile-link {
-  background: linear-gradient(135deg, var(--accent) 0%, rgba(255, 255, 255, 0.18) 140%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 88%, white 12%) 0%, var(--accent) 100%);
   color: #fff;
 }
 
 .profile-theme-midnight .social-icon,
 .profile-theme-midnight .profile-home-link,
-.profile-theme-midnight .profile-pill-button,
+.profile-theme-midnight .profile-action-button,
 .profile-theme-midnight .link-section-card,
 .profile-theme-midnight .profile-bio-card,
 .profile-theme-midnight .lead-card,
@@ -1073,8 +1136,8 @@ th {
 }
 
 .profile-theme-linen .profile-card {
-  background: rgba(255, 255, 255, 0.76);
-  border: 1px solid rgba(33, 26, 22, 0.08);
+  background: transparent;
+  border: none;
 }
 
 .profile-theme-linen .profile-tag,
@@ -1084,14 +1147,14 @@ th {
 }
 
 .profile-theme-linen .profile-link {
-  background: rgba(255, 255, 255, 0.92);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 88%, white 12%) 0%, var(--accent) 100%);
   color: #1f1814;
-  border: 1px solid rgba(33, 26, 22, 0.1);
+  border: none;
 }
 
 .profile-theme-linen .social-icon,
 .profile-theme-linen .profile-home-link,
-.profile-theme-linen .profile-pill-button,
+.profile-theme-linen .profile-action-button,
 .profile-theme-linen .link-section-card,
 .profile-theme-linen .profile-bio-card,
 .profile-theme-linen .lead-card,
@@ -1114,8 +1177,8 @@ th {
 }
 
 .profile-theme-sunset .profile-card {
-  background: rgba(255, 248, 239, 0.72);
-  border: 1px solid rgba(59, 21, 11, 0.08);
+  background: transparent;
+  border: none;
 }
 
 .profile-theme-sunset .profile-tag,
@@ -1125,14 +1188,14 @@ th {
 }
 
 .profile-theme-sunset .profile-link {
-  background: rgba(255, 255, 255, 0.88);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 88%, white 12%) 0%, var(--accent) 100%);
   color: #311b17;
-  border: 1px solid rgba(59, 21, 11, 0.1);
+  border: none;
 }
 
 .profile-theme-sunset .social-icon,
 .profile-theme-sunset .profile-home-link,
-.profile-theme-sunset .profile-pill-button,
+.profile-theme-sunset .profile-action-button,
 .profile-theme-sunset .link-section-card,
 .profile-theme-sunset .profile-bio-card,
 .profile-theme-sunset .lead-card,
@@ -1331,8 +1394,7 @@ th {
   .offer-banner,
   .marketing-nav,
   .simple-nav,
-  .studio-meta,
-  .profile-topbar {
+  .studio-meta {
     align-items: start;
     flex-direction: column;
   }
@@ -1350,6 +1412,11 @@ th {
 
   .profile-top-actions {
     justify-content: start;
+  }
+
+  .profile-topbar {
+    align-items: center;
+    flex-direction: row;
   }
 
   .status-row strong {
@@ -1398,7 +1465,7 @@ th {
   }
 
   .profile-home-link,
-  .profile-pill-button {
-    width: 100%;
+  .profile-action-button {
+    width: 44px;
   }
 }
