@@ -18,8 +18,15 @@ const CANONICAL_PUBLIC_HOST = "www.myurlc.com";
 const SITE_NAME = "myurlc.com";
 const DEFAULT_META_DESCRIPTION = "Create a free link in bio page for your brand, business, or creator profile on myurlc.com. Publish links, collect leads, and grow organically.";
 const REFERRAL_CODE_MAX_LENGTH = 12;
-const BASE_URL = normalizeBaseUrl(process.env.BASE_URL || `http://localhost:${PORT}`);
+const LOCAL_BASE_URL = `http://localhost:${PORT}`;
+const PUBLIC_WEB_URL = normalizeBaseUrl(process.env.PUBLIC_WEB_URL || process.env.BASE_URL || LOCAL_BASE_URL);
+const BASE_URL = PUBLIC_WEB_URL;
+const APP_BASE_URL = normalizeBaseUrl(process.env.APP_BASE_URL || process.env.API_BASE_URL || process.env.BASE_URL || LOCAL_BASE_URL);
+const APP_HOSTNAME = getHostname(APP_BASE_URL);
 const SESSION_SECRET = process.env.SESSION_SECRET || "dev_secret_change_me";
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "myurlc.sid";
+const SESSION_COOKIE_DOMAIN = normalizeCookieDomain(process.env.SESSION_COOKIE_DOMAIN || "");
+const SESSION_COOKIE_SAMESITE = normalizeSameSite(process.env.SESSION_COOKIE_SAMESITE || "lax");
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || "";
@@ -33,6 +40,14 @@ const BILLING_CHECKOUT_MODE = process.env.BILLING_CHECKOUT_MODE || "payment";
 const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 const DATABASE_SSL = String(process.env.DATABASE_SSL || "").trim().toLowerCase();
 const STORE_SNAPSHOT_KEY = "primary";
+const CORS_ALLOWED_ORIGINS = buildAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS || "", [
+  PUBLIC_WEB_URL,
+  APP_BASE_URL,
+  LOCAL_BASE_URL,
+  "http://127.0.0.1:3000",
+  "http://localhost:8080",
+  "http://127.0.0.1:8080"
+]);
 
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
 const dbPool = DATABASE_URL ? new Pool(buildDatabaseConnectionOptions()) : null;
@@ -125,14 +140,37 @@ if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
 
+app.use((req, res, next) => {
+  if (!req.path.startsWith("/api/")) {
+    return next();
+  }
+
+  const origin = normalizeOrigin(req.get("origin") || "");
+  if (origin && CORS_ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Requested-With");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+  }
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+
+  return next();
+});
+
 app.use(session({
+  name: SESSION_COOKIE_NAME,
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
     maxAge: 1000 * 60 * 60 * 12,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production"
+    sameSite: SESSION_COOKIE_SAMESITE,
+    secure: process.env.NODE_ENV === "production",
+    ...(SESSION_COOKIE_DOMAIN ? { domain: SESSION_COOKIE_DOMAIN } : {})
   }
 }));
 
@@ -151,6 +189,10 @@ app.use((req, res, next) => {
     }
 
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  }
+
+  if (APP_HOSTNAME && hostname === APP_HOSTNAME && !isSecureRequest && APP_BASE_URL.startsWith("https://")) {
+    return res.redirect(301, `https://${APP_HOSTNAME}${req.originalUrl}`);
   }
 
   return next();
@@ -432,6 +474,64 @@ function normalizeBaseUrl(value) {
   }
 }
 
+function normalizeOrigin(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(raw.includes("://") ? raw : `https://${raw}`);
+    return `${parsed.protocol}//${parsed.host}`.replace(/\/$/, "");
+  } catch (error) {
+    return "";
+  }
+}
+
+function getHostname(value) {
+  const origin = normalizeOrigin(value);
+  if (!origin) {
+    return "";
+  }
+
+  try {
+    return new URL(origin).hostname.toLowerCase();
+  } catch (error) {
+    return "";
+  }
+}
+
+function normalizeSameSite(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "strict") {
+    return "strict";
+  }
+  if (normalized === "none") {
+    return "none";
+  }
+  return "lax";
+}
+
+function normalizeCookieDomain(value) {
+  const trimmed = String(value || "").trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "");
+  if (!trimmed || trimmed === "localhost" || trimmed === "127.0.0.1") {
+    return "";
+  }
+
+  return trimmed.replace(/^\./, "");
+}
+
+function buildAllowedOrigins(rawValue, seeds = []) {
+  const origins = new Set();
+  [...seeds, ...String(rawValue || "").split(",")].forEach((candidate) => {
+    const normalized = normalizeOrigin(candidate);
+    if (normalized) {
+      origins.add(normalized);
+    }
+  });
+  return [...origins];
+}
+
 function absoluteUrl(pathname = "/") {
   const raw = String(pathname || "").trim();
   if (!raw || raw === "/") {
@@ -443,6 +543,19 @@ function absoluteUrl(pathname = "/") {
   }
 
   return `${BASE_URL}${raw.startsWith("/") ? raw : `/${raw}`}`;
+}
+
+function appAbsoluteUrl(pathname = "/") {
+  const raw = String(pathname || "").trim();
+  if (!raw || raw === "/") {
+    return APP_BASE_URL;
+  }
+
+  if (/^https?:\/\//i.test(raw)) {
+    return raw;
+  }
+
+  return `${APP_BASE_URL}${raw.startsWith("/") ? raw : `/${raw}`}`;
 }
 
 function buildPublicPagePath(slug) {
@@ -2453,6 +2566,29 @@ function requireGuest(req, res, next) {
   return next();
 }
 
+function requireCustomerApi(req, res, next) {
+  const customer = getCurrentCustomer(req);
+  if (!customer) {
+    return respondApiError(res, 401, "Login required.", {
+      redirect_url: absoluteUrl("/login")
+    });
+  }
+
+  req.currentCustomer = customer;
+  return next();
+}
+
+function requireGuestApi(req, res, next) {
+  const customer = getCurrentCustomer(req);
+  if (customer) {
+    return respondApiError(res, 409, "You are already logged in.", {
+      redirect_url: absoluteUrl("/app")
+    });
+  }
+
+  return next();
+}
+
 function ensureCustomerPage(user) {
   const existing = getOrderByOwnerUserId(user.id);
   if (existing) {
@@ -2675,6 +2811,158 @@ function renderAnalytics(res, user, row, report, options = {}) {
   });
 }
 
+function buildCustomerManageUrls() {
+  return {
+    app_home_url: absoluteUrl("/app"),
+    studio_url: appAbsoluteUrl("/studio"),
+    analytics_url: appAbsoluteUrl("/analytics"),
+    billing_url: appAbsoluteUrl("/billing"),
+    support_url: absoluteUrl("/support"),
+    export_url: appAbsoluteUrl("/api/customer/export"),
+    logout_url: appAbsoluteUrl("/api/auth/logout")
+  };
+}
+
+function respondApiError(res, statusCode, message, extra = {}) {
+  return res.status(statusCode).json({
+    ok: false,
+    error: message,
+    ...extra
+  });
+}
+
+function buildTrackedLinkUrl(href) {
+  const raw = String(href || "").trim();
+  if (!raw) {
+    return "#";
+  }
+
+  if (/^(https?:|mailto:|tel:|sms:)/i.test(raw)) {
+    return raw;
+  }
+
+  if (raw.startsWith("/")) {
+    return appAbsoluteUrl(raw);
+  }
+
+  return raw;
+}
+
+function serializeLinkForApi(link) {
+  return {
+    label: link.label,
+    url: link.url,
+    section: link.section,
+    section_label: link.section_label,
+    platform: link.platform,
+    icon_text: link.icon_text || getPlatformIconText(link.platform),
+    href: buildTrackedLinkUrl(link.href)
+  };
+}
+
+function buildPublicPageApiPayload(row) {
+  const order = toOrderViewModel(row);
+  if (!order) {
+    return null;
+  }
+
+  const visibleName = order.business_name || order.full_name || order.slug;
+  const description = sanitizeMetaText(order.bio || `Visit ${visibleName} on ${SITE_NAME}.`, DEFAULT_META_DESCRIPTION, 160);
+
+  return {
+    site: {
+      name: SITE_NAME,
+      public_web_url: PUBLIC_WEB_URL,
+      support_email: SUPPORT_EMAIL
+    },
+    seo: {
+      title: `${visibleName} | ${SITE_NAME}`,
+      description,
+      canonical_url: order.public_url,
+      og_image: order.profile_media && order.profile_media_type === "image" ? absoluteUrl(order.profile_media) : ""
+    },
+    page: {
+      id: order.id,
+      slug: order.slug,
+      public_path: order.public_path,
+      public_url: order.public_url,
+      visible_name: visibleName,
+      business_name: order.business_name,
+      full_name: order.full_name,
+      bio: order.bio,
+      phone: order.phone,
+      theme: order.theme,
+      accent_color: order.accent_color,
+      profile_media: order.profile_media,
+      profile_media_type: order.profile_media_type,
+      background_image: order.background_image,
+      lead_form_enabled: Boolean(order.lead_form_enabled),
+      lead_form_prompt: order.lead_form_prompt,
+      lead_submit_url: appAbsoluteUrl(`/api/public/pages/${encodeURIComponent(order.slug)}/lead`),
+      track_view_url: appAbsoluteUrl(`/api/public/pages/${encodeURIComponent(order.slug)}/view`),
+      contact_actions: buildPhoneContactActions(order.phone),
+      social_links: order.social_links.map(serializeLinkForApi),
+      sections: order.link_sections.map((section) => ({
+        value: section.value,
+        label: section.label,
+        links: section.links.map(serializeLinkForApi)
+      })),
+      home_url: PUBLIC_WEB_URL,
+      join_url: order.owner_referral_share_url || absoluteUrl("/signup"),
+      subscribe_url: order.lead_form_enabled ? `${order.public_url}#subscribe` : absoluteUrl("/signup")
+    }
+  };
+}
+
+function buildCustomerApiPayload(user, row = null) {
+  const customer = toCustomerViewModel(user);
+  const order = toOrderViewModel(row || ensureCustomerPage(customer));
+  return {
+    customer: {
+      id: customer.id,
+      name: customer.name,
+      business_name: customer.business_name,
+      email: customer.email,
+      billing_status: customer.billing_status,
+      has_active_plan: customer.has_active_plan,
+      has_lifetime_plan: customer.has_lifetime_plan,
+      has_bonus_access: customer.has_bonus_access,
+      can_access_studio: customer.can_access_studio,
+      trial_expired: customer.trial_expired,
+      trial_days_remaining: customer.trial_days_remaining,
+      formatted_trial_end: customer.formatted_trial_end,
+      formatted_access_end: customer.formatted_access_end,
+      referral_code: customer.referral_code,
+      referral_share_url: customer.referral_share_url,
+      referral_bonus_months_earned: customer.referral_bonus_months_earned,
+      successful_referrals_count: customer.successful_referrals_count,
+      founder_slot_number: customer.founder_slot_number,
+      founding_member: customer.founding_member
+    },
+    page: {
+      id: order.id,
+      slug: order.slug,
+      public_path: order.public_path,
+      public_url: order.public_url,
+      status: order.status,
+      is_published: Boolean(order.is_published),
+      full_name: order.full_name,
+      business_name: order.business_name,
+      bio: order.bio,
+      phone: order.phone,
+      theme: order.theme,
+      accent_color: order.accent_color,
+      lead_form_enabled: Boolean(order.lead_form_enabled),
+      lead_form_prompt: order.lead_form_prompt,
+      profile_media: order.profile_media,
+      profile_media_type: order.profile_media_type,
+      background_image: order.background_image,
+      links: order.links.map(serializeLinkForApi)
+    },
+    manage: buildCustomerManageUrls()
+  };
+}
+
 function buildCustomerExportPayload(user, order) {
   const report = buildOrderAnalyticsReport(order);
   const leads = listLeads()
@@ -2732,6 +3020,8 @@ function buildCustomerExportPayload(user, order) {
 
 app.use((req, res, next) => {
   res.locals.baseUrl = BASE_URL;
+  res.locals.publicBaseUrl = PUBLIC_WEB_URL;
+  res.locals.appBaseUrl = APP_BASE_URL;
   res.locals.siteName = SITE_NAME;
   res.locals.currentPath = req.path;
   res.locals.databaseConfigured = Boolean(dbPool);
@@ -2757,6 +3047,382 @@ app.use((req, res, next) => {
     canonicalUrl: absoluteUrl(req.path || "/")
   }));
   next();
+});
+
+function saveCustomerPageFromRequest(req, customer) {
+  const order = ensureCustomerPage(customer);
+  const values = buildStudioValues(customer, order, req.body);
+  const intent = String(req.body.intent || "save_draft");
+  const validLinks = parseLinks(req.body);
+  const uploadedProfileMedia = getUploadedAsset(req, "profile_media") || getUploadedAsset(req, "profile_image");
+  const uploadedBackgroundImage = getUploadedAsset(req, "background_image");
+
+  if (!values.full_name || !values.business_name) {
+    return {
+      ok: false,
+      statusCode: 400,
+      error: "Your name and business name are required.",
+      order,
+      values: req.body,
+      preview_profile_media: uploadedProfileMedia?.url,
+      preview_profile_media_type: uploadedProfileMedia?.type,
+      preview_background_image: uploadedBackgroundImage?.url
+    };
+  }
+
+  if (intent === "publish" && validLinks.length === 0) {
+    return {
+      ok: false,
+      statusCode: 400,
+      error: "Add at least one working link before publishing.",
+      order,
+      values: req.body,
+      preview_profile_media: uploadedProfileMedia?.url,
+      preview_profile_media_type: uploadedProfileMedia?.type,
+      preview_background_image: uploadedBackgroundImage?.url
+    };
+  }
+
+  const slugSelection = resolveSlugSelection(values.slug, values.business_name || values.full_name || order.slug, {
+    currentOrderId: order.id
+  });
+  if (slugSelection.error) {
+    return {
+      ok: false,
+      statusCode: 400,
+      error: slugSelection.error,
+      order,
+      values: req.body,
+      preview_profile_media: uploadedProfileMedia?.url,
+      preview_profile_media_type: uploadedProfileMedia?.type,
+      preview_background_image: uploadedBackgroundImage?.url
+    };
+  }
+
+  const slug = slugSelection.slug;
+  const profileMedia = req.body.remove_profile_media === "1"
+    ? null
+    : (uploadedProfileMedia?.url || order.profile_media || order.profile_image || null);
+  const profileMediaType = req.body.remove_profile_media === "1"
+    ? null
+    : (uploadedProfileMedia?.type || order.profile_media_type || (profileMedia ? "image" : null));
+  const backgroundImage = req.body.remove_background_image === "1"
+    ? null
+    : (uploadedBackgroundImage?.url || order.background_image || null);
+
+  const isPublished = intent === "publish" ? 1 : 0;
+  const status = isPublished ? "published" : "draft";
+
+  const nextCustomer = updateUser(customer.id, {
+    name: values.full_name,
+    business_name: values.business_name
+  });
+
+  const updatedOrder = updateOrder(order.id, {
+    owner_user_id: customer.id,
+    source: "self_serve",
+    email: customer.email,
+    full_name: values.full_name,
+    business_name: values.business_name,
+    slug,
+    bio: values.bio,
+    phone: values.phone,
+    lead_form_enabled: values.lead_form_enabled ? 1 : 0,
+    lead_form_prompt: values.lead_form_prompt,
+    profile_media: profileMedia,
+    profile_media_type: profileMediaType,
+    profile_image: profileMediaType === "image" ? profileMedia : null,
+    background_image: backgroundImage,
+    theme: values.theme,
+    accent_color: values.accent_color,
+    links_json: JSON.stringify(validLinks),
+    status,
+    is_published: isPublished
+  }, {
+    revisionReason: intent === "publish"
+      ? (order.is_published ? "Before customer live update" : "Before first customer publish")
+      : (intent === "unpublish" ? "Before customer unpublish" : "Before customer draft save"),
+    revisionActorType: "customer",
+    revisionActorUserId: customer.id,
+    revisionActorLabel: "Customer"
+  });
+
+  return {
+    ok: true,
+    customer: nextCustomer,
+    order: toOrderViewModel(updatedOrder),
+    info: "Changes saved."
+  };
+}
+
+function buildHealthPayload() {
+  return {
+    ok: true,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    urls: {
+      public_web_url: PUBLIC_WEB_URL,
+      app_base_url: APP_BASE_URL
+    },
+    storage: {
+      uploads: "volume",
+      app_data: dbPool ? (databaseReady ? "postgres+volume-mirror" : "volume-json-fallback") : "volume-json",
+      database_configured: Boolean(dbPool),
+      database_ready: databaseReady,
+      store_loaded_from: storeLoadedFrom
+    },
+    users: listUsers().length,
+    pages: listOrders().length,
+    leads: listLeads().length,
+    events: listAnalyticsEvents().length
+  };
+}
+
+app.get("/api/health", (req, res) => {
+  res.json(buildHealthPayload());
+});
+
+app.get("/api/config", (req, res) => {
+  res.json({
+    ok: true,
+    site_name: SITE_NAME,
+    public_web_url: PUBLIC_WEB_URL,
+    app_base_url: APP_BASE_URL,
+    support_email: SUPPORT_EMAIL,
+    founder_offer: getFoundingOfferStats(),
+    manage: buildCustomerManageUrls()
+  });
+});
+
+app.get("/api/public/pages/:slug", (req, res) => {
+  const order = getPublishedOrderBySlug(req.params.slug);
+  if (!order) {
+    return respondApiError(res, 404, "Page not found.");
+  }
+
+  return res.json({
+    ok: true,
+    ...buildPublicPageApiPayload(order)
+  });
+});
+
+app.post("/api/public/pages/:slug/view", (req, res) => {
+  const order = getPublishedOrderBySlug(req.params.slug);
+  if (!order) {
+    return respondApiError(res, 404, "Page not found.");
+  }
+
+  createAnalyticsEvent({
+    order_id: order.id,
+    owner_user_id: order.owner_user_id || null,
+    event_type: "page_view",
+    ...buildRequestAnalyticsContext(req)
+  });
+
+  return res.status(201).json({ ok: true });
+});
+
+app.post("/api/public/pages/:slug/lead", (req, res) => {
+  const order = getPublishedOrderBySlug(req.params.slug);
+  if (!order || !order.lead_form_enabled) {
+    return respondApiError(res, 404, "Lead form not available.");
+  }
+
+  const name = String(req.body.name || "").trim();
+  const email = normalizeEmail(req.body.email);
+  const message = String(req.body.message || "").trim();
+
+  if (!name || !email || !message) {
+    return respondApiError(res, 400, "Name, email, and message are required.");
+  }
+
+  createLead({
+    order_id: order.id,
+    owner_user_id: order.owner_user_id || null,
+    name,
+    email,
+    message,
+    ...buildRequestAnalyticsContext(req)
+  });
+
+  createAnalyticsEvent({
+    order_id: order.id,
+    owner_user_id: order.owner_user_id || null,
+    event_type: "lead_submission",
+    ...buildRequestAnalyticsContext(req)
+  });
+
+  return res.status(201).json({
+    ok: true,
+    message: "Message sent. The page owner can now follow up with you."
+  });
+});
+
+app.post("/api/support", (req, res) => {
+  const customer = getCurrentCustomer(req);
+  const values = buildSupportValues(req.body, customer);
+
+  if (!values.name || !values.email || !values.subject || !values.message) {
+    return respondApiError(res, 400, "Name, email, subject, and message are required.");
+  }
+
+  createSupportTicket({
+    user_id: customer?.id || null,
+    name: values.name,
+    email: values.email,
+    category: values.category,
+    subject: values.subject,
+    message: values.message,
+    page_url: values.page_url
+  });
+
+  return res.status(201).json({
+    ok: true,
+    message: `Ticket received. We will review it at ${SUPPORT_EMAIL}.`
+  });
+});
+
+app.get("/api/auth/me", (req, res) => {
+  const customer = getCurrentCustomer(req);
+  if (!customer) {
+    return respondApiError(res, 401, "Not signed in.", {
+      redirect_url: absoluteUrl("/login")
+    });
+  }
+
+  return res.json({
+    ok: true,
+    ...buildCustomerApiPayload(customer)
+  });
+});
+
+app.post("/api/auth/signup", requireGuestApi, (req, res) => {
+  const values = {
+    ...buildCustomerValues(req.body),
+    password: String(req.body.password || "")
+  };
+  const referrer = values.referral_code ? getUserByReferralCode(values.referral_code) : null;
+
+  if (!values.full_name || !values.business_name || !values.email || !values.password) {
+    return respondApiError(res, 400, "Name, business name, email, and password are required.");
+  }
+
+  if (values.password.length < 8) {
+    return respondApiError(res, 400, "Use at least 8 characters for the password.");
+  }
+
+  if (getUserByEmail(values.email)) {
+    return respondApiError(res, 400, "That email already has an account. Try logging in instead.");
+  }
+
+  if (values.referral_code && !referrer) {
+    return respondApiError(res, 400, "That referral code was not found.");
+  }
+
+  if (referrer && normalizeEmail(referrer.email) === values.email) {
+    return respondApiError(res, 400, "You cannot use your own referral code for this account.");
+  }
+
+  const user = createUser({
+    name: values.full_name,
+    business_name: values.business_name,
+    email: values.email,
+    password: values.password,
+    referred_by_user_id: referrer ? referrer.id : null
+  });
+
+  if (referrer) {
+    applyReferralReward(referrer.id);
+  }
+
+  ensureCustomerPage(user);
+  req.session.customerUserId = user.id;
+
+  return res.status(201).json({
+    ok: true,
+    redirect_url: absoluteUrl("/app"),
+    ...buildCustomerApiPayload(user)
+  });
+});
+
+app.post("/api/auth/login", requireGuestApi, (req, res) => {
+  const values = {
+    email: normalizeEmail(req.body.email),
+    password: String(req.body.password || "")
+  };
+
+  const user = getUserByEmail(values.email);
+  if (!user || !verifyPassword(values.password, user.password_hash)) {
+    return respondApiError(res, 401, "Incorrect email or password.");
+  }
+
+  req.session.customerUserId = user.id;
+  return res.json({
+    ok: true,
+    redirect_url: absoluteUrl("/app"),
+    ...buildCustomerApiPayload(user)
+  });
+});
+
+app.post("/api/auth/logout", (req, res) => {
+  if (req.session) {
+    delete req.session.customerUserId;
+  }
+
+  return res.json({
+    ok: true,
+    redirect_url: absoluteUrl("/")
+  });
+});
+
+app.get("/api/customer/page", requireCustomerApi, (req, res) => {
+  return res.json({
+    ok: true,
+    ...buildCustomerApiPayload(req.currentCustomer)
+  });
+});
+
+app.post("/api/customer/page", requireCustomerApi, assetUpload, (req, res) => {
+  if (!req.currentCustomer.can_access_studio) {
+    return respondApiError(res, 402, "Upgrade required to keep editing your page.", {
+      redirect_url: absoluteUrl("/app"),
+      billing_url: appAbsoluteUrl("/billing")
+    });
+  }
+
+  const result = saveCustomerPageFromRequest(req, req.currentCustomer);
+  if (!result.ok) {
+    return respondApiError(res, result.statusCode, result.error);
+  }
+
+  return res.json({
+    ok: true,
+    message: result.info,
+    ...buildCustomerApiPayload(result.customer, result.order)
+  });
+});
+
+app.get("/api/customer/analytics", requireCustomerApi, (req, res) => {
+  const order = ensureCustomerPage(req.currentCustomer);
+  const report = buildOrderAnalyticsReport(toOrderViewModel(order));
+
+  return res.json({
+    ok: true,
+    report,
+    page: {
+      slug: order.slug,
+      public_url: absoluteUrl(buildPublicPagePath(order.slug))
+    },
+    manage: buildCustomerManageUrls()
+  });
+});
+
+app.get("/api/customer/export", requireCustomerApi, (req, res) => {
+  const order = toOrderViewModel(ensureCustomerPage(req.currentCustomer));
+  return res.json({
+    ok: true,
+    payload: buildCustomerExportPayload(req.currentCustomer, order)
+  });
 });
 
 app.get("/", (req, res) => {
@@ -3027,6 +3693,15 @@ app.post("/logout", (req, res) => {
   res.redirect("/");
 });
 
+app.get("/app", (req, res) => {
+  const customer = getCurrentCustomer(req);
+  if (!customer) {
+    return res.redirect("/login");
+  }
+
+  return res.redirect("/studio");
+});
+
 app.get("/billing", requireCustomer, (req, res) => {
   const order = ensureCustomerPage(req.currentCustomer);
   renderBilling(res, req.currentCustomer, order, {
@@ -3047,8 +3722,8 @@ app.post("/billing/create-checkout-session", requireCustomer, async (req, res) =
       mode: BILLING_CHECKOUT_MODE,
       line_items: [{ price: BILLING_PRICE_ID, quantity: 1 }],
       customer_email: req.currentCustomer.email,
-      success_url: `${BASE_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${BASE_URL}/billing`,
+      success_url: `${appAbsoluteUrl("/billing/success")}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: appAbsoluteUrl("/billing"),
       metadata: {
         customer_user_id: String(req.currentCustomer.id)
       }
@@ -3125,96 +3800,17 @@ app.post("/studio", requireCustomer, assetUpload, (req, res) => {
     return res.redirect("/billing");
   }
 
-  const order = ensureCustomerPage(customer);
-  const values = buildStudioValues(customer, order, req.body);
-  const intent = String(req.body.intent || "save_draft");
-  const validLinks = parseLinks(req.body);
-  const uploadedProfileMedia = getUploadedAsset(req, "profile_media") || getUploadedAsset(req, "profile_image");
-  const uploadedBackgroundImage = getUploadedAsset(req, "background_image");
-
-  if (!values.full_name || !values.business_name) {
-    return renderStudio(res, customer, order, {
-      statusCode: 400,
-      error: "Your name and business name are required.",
-      values: req.body,
-      preview_profile_media: uploadedProfileMedia?.url,
-      preview_profile_media_type: uploadedProfileMedia?.type,
-      preview_background_image: uploadedBackgroundImage?.url
+  const result = saveCustomerPageFromRequest(req, customer);
+  if (!result.ok) {
+    return renderStudio(res, customer, result.order, {
+      statusCode: result.statusCode,
+      error: result.error,
+      values: result.values,
+      preview_profile_media: result.preview_profile_media,
+      preview_profile_media_type: result.preview_profile_media_type,
+      preview_background_image: result.preview_background_image
     });
   }
-
-  if (intent === "publish" && validLinks.length === 0) {
-    return renderStudio(res, customer, order, {
-      statusCode: 400,
-      error: "Add at least one working link before publishing.",
-      values: req.body,
-      preview_profile_media: uploadedProfileMedia?.url,
-      preview_profile_media_type: uploadedProfileMedia?.type,
-      preview_background_image: uploadedBackgroundImage?.url
-    });
-  }
-
-  const slugSelection = resolveSlugSelection(values.slug, values.business_name || values.full_name || order.slug, {
-    currentOrderId: order.id
-  });
-  if (slugSelection.error) {
-    return renderStudio(res, customer, order, {
-      statusCode: 400,
-      error: slugSelection.error,
-      values: req.body,
-      preview_profile_media: uploadedProfileMedia?.url,
-      preview_profile_media_type: uploadedProfileMedia?.type,
-      preview_background_image: uploadedBackgroundImage?.url
-    });
-  }
-
-  const slug = slugSelection.slug;
-  const profileMedia = req.body.remove_profile_media === "1"
-    ? null
-    : (uploadedProfileMedia?.url || order.profile_media || order.profile_image || null);
-  const profileMediaType = req.body.remove_profile_media === "1"
-    ? null
-    : (uploadedProfileMedia?.type || order.profile_media_type || (profileMedia ? "image" : null));
-  const backgroundImage = req.body.remove_background_image === "1"
-    ? null
-    : (uploadedBackgroundImage?.url || order.background_image || null);
-
-  const isPublished = intent === "publish" ? 1 : 0;
-  const status = isPublished ? "published" : "draft";
-
-  updateUser(customer.id, {
-    name: values.full_name,
-    business_name: values.business_name
-  });
-
-  updateOrder(order.id, {
-    owner_user_id: customer.id,
-    source: "self_serve",
-    email: customer.email,
-    full_name: values.full_name,
-    business_name: values.business_name,
-    slug,
-    bio: values.bio,
-    phone: values.phone,
-    lead_form_enabled: values.lead_form_enabled ? 1 : 0,
-    lead_form_prompt: values.lead_form_prompt,
-    profile_media: profileMedia,
-    profile_media_type: profileMediaType,
-    profile_image: profileMediaType === "image" ? profileMedia : null,
-    background_image: backgroundImage,
-    theme: values.theme,
-    accent_color: values.accent_color,
-    links_json: JSON.stringify(validLinks),
-    status,
-    is_published: isPublished
-  }, {
-    revisionReason: intent === "publish"
-      ? (order.is_published ? "Before customer live update" : "Before first customer publish")
-      : (intent === "unpublish" ? "Before customer unpublish" : "Before customer draft save"),
-    revisionActorType: "customer",
-    revisionActorUserId: customer.id,
-    revisionActorLabel: "Customer"
-  });
 
   return res.redirect("/studio?saved=1");
 });
@@ -3239,8 +3835,8 @@ app.post("/create-checkout-session", async (req, res) => {
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
-      success_url: `${BASE_URL}/intake?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${BASE_URL}/buy`,
+      success_url: `${appAbsoluteUrl("/intake")}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: appAbsoluteUrl("/buy"),
       allow_promotion_codes: true
     });
 
@@ -3736,22 +4332,7 @@ app.get("/p/:slug", (req, res) => {
 });
 
 app.get("/health", (req, res) => {
-  res.json({
-    ok: true,
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    storage: {
-      uploads: "volume",
-      app_data: dbPool ? (databaseReady ? "postgres+volume-mirror" : "volume-json-fallback") : "volume-json",
-      database_configured: Boolean(dbPool),
-      database_ready: databaseReady,
-      store_loaded_from: storeLoadedFrom
-    },
-    users: listUsers().length,
-    pages: listOrders().length,
-    leads: listLeads().length,
-    events: listAnalyticsEvents().length
-  });
+  res.json(buildHealthPayload());
 });
 
 app.get("/:slug", handlePublicProfileRequest);

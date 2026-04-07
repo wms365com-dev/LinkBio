@@ -51,10 +51,18 @@ cp .env.example .env
 3. Fill in the values you want to use
 
 - `BASE_URL`
+- `PUBLIC_WEB_URL`
+- `APP_BASE_URL`
+- `API_BASE_URL`
+- `CORS_ALLOWED_ORIGINS`
 - `DATABASE_URL`
 - `DATABASE_SSL`
 - `SESSION_SECRET`
+- `SESSION_COOKIE_NAME`
+- `SESSION_COOKIE_DOMAIN`
+- `SESSION_COOKIE_SAMESITE`
 - `ADMIN_PASSWORD`
+- `SUPPORT_EMAIL`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_PRICE_ID`
 - `OFFER_PRICE_DISPLAY`
@@ -82,10 +90,18 @@ For local-only JSON fallback, leave `DATABASE_URL` blank.
 3. Add a Railway PostgreSQL service and copy its `DATABASE_URL` into the app service.
 4. Add environment variables:
    - `BASE_URL`
+   - `PUBLIC_WEB_URL`
+   - `APP_BASE_URL`
+   - `API_BASE_URL`
+   - `CORS_ALLOWED_ORIGINS`
    - `DATABASE_URL`
    - `DATABASE_SSL`
    - `SESSION_SECRET`
+   - `SESSION_COOKIE_NAME`
+   - `SESSION_COOKIE_DOMAIN`
+   - `SESSION_COOKIE_SAMESITE`
    - `ADMIN_PASSWORD`
+   - `SUPPORT_EMAIL`
    - `STRIPE_SECRET_KEY`
    - `STRIPE_PRICE_ID`
    - `OFFER_PRICE_DISPLAY`
@@ -102,6 +118,48 @@ Recommended Railway combo:
 
 - PostgreSQL stores app data such as users, pages, referrals, leads, analytics, and tickets
 - The `/data` volume stores uploads and keeps a mirrored JSON snapshot for fallback/recovery
+
+## Bluehost + Railway split
+
+You can now run the public frontend on Bluehost while keeping the app logic and data on Railway.
+
+### Railway app
+
+Use the Railway app as the backend/API host. Set these env vars:
+
+- `PUBLIC_WEB_URL=https://www.myurlc.com`
+- `APP_BASE_URL=https://api.myurlc.com`
+- `CORS_ALLOWED_ORIGINS=https://www.myurlc.com,https://myurlc.com`
+- `SESSION_COOKIE_DOMAIN=myurlc.com`
+
+If you are still testing on the default Railway URL instead of `api.myurlc.com`, leave `SESSION_COOKIE_DOMAIN` blank until the API subdomain is live.
+
+The Railway app now exposes JSON endpoints such as:
+
+- `GET /api/public/pages/:slug`
+- `POST /api/public/pages/:slug/view`
+- `POST /api/public/pages/:slug/lead`
+- `POST /api/auth/signup`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `GET /api/customer/page`
+- `GET /api/customer/analytics`
+- `GET /api/customer/export`
+- `POST /api/support`
+
+### Bluehost frontend
+
+Upload the files in [bluehost-frontend](/C:/LinkBio/linkbio-mvp/linkbio-mvp/bluehost-frontend) to Bluehost. That starter includes:
+
+- homepage
+- login/signup
+- dashboard shell
+- support page
+- public profile pages at `/username`
+- `.htaccess` rewrites
+- `robots.txt` and `sitemap.php`
+
+Edit [bluehost-frontend/config.php](/C:/LinkBio/linkbio-mvp/linkbio-mvp/bluehost-frontend/config.php) before upload so it points at your Railway backend host.
 
 ## Storage behavior
 
