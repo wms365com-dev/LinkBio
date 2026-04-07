@@ -755,12 +755,82 @@ th {
 .profile-card {
   position: relative;
   z-index: 1;
-  width: min(540px, 100%);
+  width: 100%;
   padding: 34px 24px 26px;
   border-radius: 30px;
   text-align: center;
   box-shadow: 0 24px 70px rgba(14, 13, 20, 0.2);
   backdrop-filter: blur(16px);
+}
+
+.profile-shell {
+  position: relative;
+  z-index: 1;
+  width: min(540px, 100%);
+}
+
+.profile-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.profile-top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.profile-home-link,
+.profile-pill-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: inherit;
+  font-weight: 800;
+}
+
+.profile-home-link {
+  width: 46px;
+  min-width: 46px;
+  padding: 0;
+}
+
+.profile-pill-button {
+  cursor: pointer;
+}
+
+.profile-pill-button-ghost {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.profile-pill-button-static,
+.profile-home-link-static {
+  pointer-events: none;
+}
+
+.icon-svg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+.icon-svg svg {
+  width: 100%;
+  height: 100%;
 }
 
 .profile-media-shell {
@@ -778,10 +848,12 @@ th {
 }
 
 .avatar {
+  display: block;
   width: 110px;
   height: 110px;
+  margin: 0 auto;
   object-fit: cover;
-  border-radius: 30px;
+  border-radius: 999px;
   border: 4px solid var(--accent);
 }
 
@@ -811,11 +883,6 @@ th {
   opacity: 0.7;
 }
 
-.contact {
-  margin-top: 10px;
-  font-weight: 700;
-}
-
 .social-strip {
   display: flex;
   flex-wrap: wrap;
@@ -828,9 +895,9 @@ th {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
+  width: 50px;
+  height: 50px;
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.12);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
@@ -845,6 +912,24 @@ th {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.profile-platform-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24px;
+  min-height: 54px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #1d1a17;
+  font-weight: 800;
+  box-shadow: 0 12px 30px rgba(14, 13, 20, 0.18);
+}
+
+.profile-platform-cta-static {
+  pointer-events: none;
 }
 
 .section-stack {
@@ -964,6 +1049,8 @@ th {
 }
 
 .profile-theme-midnight .social-icon,
+.profile-theme-midnight .profile-home-link,
+.profile-theme-midnight .profile-pill-button,
 .profile-theme-midnight .link-section-card,
 .profile-theme-midnight .profile-bio-card,
 .profile-theme-midnight .lead-card,
@@ -1003,6 +1090,8 @@ th {
 }
 
 .profile-theme-linen .social-icon,
+.profile-theme-linen .profile-home-link,
+.profile-theme-linen .profile-pill-button,
 .profile-theme-linen .link-section-card,
 .profile-theme-linen .profile-bio-card,
 .profile-theme-linen .lead-card,
@@ -1042,6 +1131,8 @@ th {
 }
 
 .profile-theme-sunset .social-icon,
+.profile-theme-sunset .profile-home-link,
+.profile-theme-sunset .profile-pill-button,
 .profile-theme-sunset .link-section-card,
 .profile-theme-sunset .profile-bio-card,
 .profile-theme-sunset .lead-card,
@@ -1188,6 +1279,10 @@ th {
   padding: 18px;
 }
 
+.profile-page-embedded .profile-shell {
+  width: 100%;
+}
+
 .profile-page-embedded .profile-card {
   width: 100%;
   max-width: none;
@@ -1236,7 +1331,8 @@ th {
   .offer-banner,
   .marketing-nav,
   .simple-nav,
-  .studio-meta {
+  .studio-meta,
+  .profile-topbar {
     align-items: start;
     flex-direction: column;
   }
@@ -1250,6 +1346,10 @@ th {
   .status-row {
     align-items: start;
     flex-direction: column;
+  }
+
+  .profile-top-actions {
+    justify-content: start;
   }
 
   .status-row strong {
@@ -1295,5 +1395,10 @@ th {
 
   .profile-card {
     padding: 28px 18px 20px;
+  }
+
+  .profile-home-link,
+  .profile-pill-button {
+    width: 100%;
   }
 }

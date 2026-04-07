@@ -23,6 +23,51 @@
 
     syncRevealButton();
   });
+
+  document.querySelectorAll("[data-share-page]").forEach((button) => {
+    const defaultLabel = button.querySelector("span:last-child");
+    const url = button.dataset.shareUrl || window.location.href;
+    const title = button.dataset.shareTitle || document.title;
+    const text = button.dataset.shareText || `Check out ${title}`;
+
+    const flashLabel = (nextText) => {
+      if (!defaultLabel) {
+        return;
+      }
+
+      const original = defaultLabel.textContent;
+      defaultLabel.textContent = nextText;
+
+      window.setTimeout(() => {
+        defaultLabel.textContent = original;
+      }, 1600);
+    };
+
+    button.addEventListener("click", async () => {
+      if (navigator.share) {
+        try {
+          await navigator.share({ title, text, url });
+          flashLabel("Shared");
+          return;
+        } catch (error) {
+          if (error && error.name === "AbortError") {
+            return;
+          }
+        }
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(url);
+          flashLabel("Copied");
+          return;
+        } catch (error) {
+        }
+      }
+
+      window.prompt("Copy this page link", url);
+    });
+  });
 </script>
 </body>
 </html>

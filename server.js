@@ -629,6 +629,42 @@ function getPlatformIconText(platform) {
   }[platform] || "GO";
 }
 
+function buildPhoneContactActions(phone) {
+  const raw = String(phone || "").trim();
+  const digits = raw.replace(/[^\d]/g, "");
+  if (digits.length < 7) {
+    return [];
+  }
+
+  const smsTarget = raw.startsWith("+") ? `+${digits}` : digits;
+  return [
+    {
+      platform: "text",
+      label: "Text",
+      href: `sms:${smsTarget}`,
+      icon: "text"
+    },
+    {
+      platform: "whatsapp",
+      label: "WhatsApp",
+      href: `https://wa.me/${digits}`,
+      icon: "whatsapp"
+    }
+  ];
+}
+
+function iconSvg(name) {
+  const icons = {
+    brand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.9 5.4L19 9.3l-4.1 3 1.6 5.3L12 14.4 7.5 17.6l1.6-5.3-4.1-3 5.1-1.9L12 2z" fill="currentColor"/></svg>',
+    share: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5h4v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 14L19 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 13v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    subscribe: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a2.5 2.5 0 0 0 2.3-1.5h-4.6A2.5 2.5 0 0 0 12 21z" fill="currentColor"/><path d="M18 16H6l1.4-1.7V10a4.6 4.6 0 1 1 9.2 0v4.3L18 16z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    text: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6.5h12a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H11l-4 3v-3H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 10h7M8.5 13h4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    whatsapp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a8 8 0 0 0-6.9 12l-1.1 4 4.1-1.1A8 8 0 1 0 12 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.7 9.5c.2-.4.4-.4.6-.4h.5c.2 0 .4 0 .5.5l.4 1.1c.1.3.1.5-.1.7l-.3.4c-.1.1-.2.3 0 .6.2.4.9 1.4 2.1 1.9.3.1.5 0 .6-.1l.5-.5c.2-.2.4-.2.7-.1l1 .5c.3.1.4.3.4.5v.5c0 .2-.1.4-.4.6-.3.2-1 .5-1.8.3-1-.2-2.1-.9-3.4-2.2-1.5-1.5-2.2-3-2.3-4-.1-.7.2-1.4.5-1.8z" fill="currentColor"/></svg>'
+  };
+
+  return icons[name] || icons.brand;
+}
+
 function normalizeMediaType(value) {
   return value === "video" ? "video" : value === "image" ? "image" : null;
 }
@@ -1493,6 +1529,8 @@ app.use((req, res, next) => {
   res.locals.themeOptions = THEME_OPTIONS;
   res.locals.linkSectionOptions = LINK_SECTION_OPTIONS;
   res.locals.socialLinkSuggestions = SOCIAL_LINK_SUGGESTIONS;
+  res.locals.buildPhoneContactActions = buildPhoneContactActions;
+  res.locals.iconSvg = iconSvg;
   res.locals.initialVisibleLinkRows = INITIAL_VISIBLE_LINK_ROWS;
   res.locals.maxLinks = MAX_LINKS;
   res.locals.currentCustomer = getCurrentCustomer(req);

@@ -1,5 +1,8 @@
 <%- include("partials/header") %>
 
+<% const contactActions = buildPhoneContactActions(order.phone); %>
+<% const subscribeHref = order.lead_form_enabled ? '#subscribe' : '/signup'; %>
+
 <div class="profile-page profile-theme-<%= order.theme %>" style="--accent:<%= order.accent_color %>;">
   <% if (order.background_image) { %>
     <div class="profile-backdrop" style="background-image:url('<%= order.background_image %>');"></div>
@@ -7,77 +10,105 @@
   <div class="profile-orb orb-a"></div>
   <div class="profile-orb orb-b"></div>
 
-  <div class="profile-card">
-    <% if (order.profile_media) { %>
-      <div class="profile-media-shell">
-        <% if (order.profile_media_type === "video") { %>
-          <video class="avatar avatar-video" src="<%= order.profile_media %>" muted loop autoplay playsinline controls></video>
-        <% } else { %>
-          <img class="avatar" src="<%= order.profile_media %>" alt="<%= order.business_name %>" />
-        <% } %>
+  <div class="profile-shell">
+    <div class="profile-topbar">
+      <a class="profile-home-link" href="/" aria-label="Back to BioLink home" title="Back to BioLink">
+        <span class="icon-svg"><%- iconSvg("brand") %></span>
+      </a>
+      <div class="profile-top-actions">
+        <a class="profile-pill-button" href="<%= subscribeHref %>">
+          <span class="icon-svg"><%- iconSvg("subscribe") %></span>
+          <span>Subscribe</span>
+        </a>
+        <button
+          class="profile-pill-button profile-pill-button-ghost"
+          type="button"
+          data-share-page
+          data-share-url="<%= order.public_url %>"
+          data-share-title="<%= order.business_name %>"
+          data-share-text="Check out <%= order.business_name %> on BioLink"
+          title="Share this page"
+        >
+          <span class="icon-svg"><%- iconSvg("share") %></span>
+          <span>Share</span>
+        </button>
       </div>
-    <% } else { %>
-      <div class="avatar avatar-placeholder"><span><%= (order.business_name || 'L').charAt(0).toUpperCase() %></span></div>
-    <% } %>
-
-    <p class="profile-tag">Custom Link Page</p>
-    <h1><%= order.business_name %></h1>
-
-    <% if (order.phone) { %>
-      <p class="contact"><%= order.phone %></p>
-    <% } %>
-
-    <div class="profile-bio-card">
-      <p class="profile-section-label">Bio</p>
-      <p class="bio"><%= order.bio || "This page is getting a bio update soon." %></p>
     </div>
 
-    <% if (order.social_links.length > 0) { %>
-      <div class="social-strip">
-        <% order.social_links.forEach(link => { %>
-          <a class="social-icon social-icon-<%= link.platform %>" href="<%= link.href %>" aria-label="<%= link.label %>" title="<%= link.label %>">
-            <span class="social-icon-mark"><%= link.icon_text %></span>
-          </a>
+    <div class="profile-card">
+      <div class="profile-media-shell">
+        <% if (order.profile_media) { %>
+          <% if (order.profile_media_type === "video") { %>
+            <video class="avatar avatar-video" src="<%= order.profile_media %>" muted loop autoplay playsinline controls></video>
+          <% } else { %>
+            <img class="avatar" src="<%= order.profile_media %>" alt="<%= order.business_name %>" />
+          <% } %>
+        <% } else { %>
+          <div class="avatar avatar-placeholder"><span><%= (order.business_name || 'L').charAt(0).toUpperCase() %></span></div>
+        <% } %>
+      </div>
+
+      <h1><%= order.business_name %></h1>
+
+      <div class="profile-bio-card">
+        <p class="profile-section-label">Bio</p>
+        <p class="bio"><%= order.bio || "This page is getting a bio update soon." %></p>
+      </div>
+
+      <% if (contactActions.length > 0 || order.social_links.length > 0) { %>
+        <div class="social-strip">
+          <% contactActions.forEach(action => { %>
+            <a class="social-icon social-icon-<%= action.platform %>" href="<%= action.href %>" aria-label="<%= action.label %>" title="<%= action.label %>">
+              <span class="icon-svg"><%- iconSvg(action.icon) %></span>
+            </a>
+          <% }) %>
+          <% order.social_links.forEach(link => { %>
+            <a class="social-icon social-icon-<%= link.platform %>" href="<%= link.href %>" aria-label="<%= link.label %>" title="<%= link.label %>">
+              <span class="social-icon-mark"><%= link.icon_text %></span>
+            </a>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <div class="section-stack">
+        <% order.link_sections.forEach(section => { %>
+          <section class="link-section-card">
+            <p class="profile-section-label"><%= section.label %></p>
+            <div class="profile-links">
+              <% section.links.forEach(link => { %>
+                <a class="profile-link" href="<%= link.href %>">
+                  <span><%= link.label %></span>
+                  <small>Open</small>
+                </a>
+              <% }) %>
+            </div>
+          </section>
         <% }) %>
       </div>
-    <% } %>
 
-    <div class="section-stack">
-      <% order.link_sections.forEach(section => { %>
-        <section class="link-section-card">
-          <p class="profile-section-label"><%= section.label %></p>
-          <div class="profile-links">
-            <% section.links.forEach(link => { %>
-              <a class="profile-link" href="<%= link.href %>">
-                <span><%= link.label %></span>
-                <small>Open</small>
-              </a>
-            <% }) %>
-          </div>
-        </section>
-      <% }) %>
+      <% if (order.lead_form_enabled) { %>
+        <div class="lead-card" id="subscribe">
+          <p class="lead-form-title"><%= order.lead_form_prompt %></p>
+
+          <% if (leadError) { %>
+            <div class="error"><%= leadError %></div>
+          <% } %>
+
+          <% if (leadSuccess) { %>
+            <div class="success"><%= leadSuccess %></div>
+          <% } %>
+
+          <form method="POST" action="/p/<%= order.slug %>/lead" class="form-stack">
+            <input name="name" placeholder="Your name" required />
+            <input name="email" type="email" placeholder="Your email" required />
+            <textarea name="message" rows="4" placeholder="How can they help?" required></textarea>
+            <button class="btn" type="submit">Send message</button>
+          </form>
+        </div>
+      <% } %>
+
+      <a class="profile-platform-cta" id="join-biolink" href="/signup">Join <%= order.slug %> on BioLink</a>
     </div>
-
-    <% if (order.lead_form_enabled) { %>
-      <div class="lead-card">
-        <p class="lead-form-title"><%= order.lead_form_prompt %></p>
-
-        <% if (leadError) { %>
-          <div class="error"><%= leadError %></div>
-        <% } %>
-
-        <% if (leadSuccess) { %>
-          <div class="success"><%= leadSuccess %></div>
-        <% } %>
-
-        <form method="POST" action="/p/<%= order.slug %>/lead" class="form-stack">
-          <input name="name" placeholder="Your name" required />
-          <input name="email" type="email" placeholder="Your email" required />
-          <textarea name="message" rows="4" placeholder="How can they help?" required></textarea>
-          <button class="btn" type="submit">Send message</button>
-        </form>
-      </div>
-    <% } %>
   </div>
 </div>
 
