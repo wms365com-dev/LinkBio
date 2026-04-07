@@ -4,6 +4,8 @@
   <header class="marketing-nav container">
     <a class="brand-mark" href="/">myurlc.com</a>
     <div class="nav-actions">
+      <a class="btn btn-ghost" href="/studio/export">Export JSON</a>
+      <a class="btn btn-ghost" href="/analytics">Analytics</a>
       <% if (order && order.public_url) { %>
         <a class="btn btn-ghost" href="<%= order.public_url %>" target="_blank" rel="noreferrer">Open page</a>
       <% } %>
@@ -35,7 +37,7 @@
 
       <% if (user.has_lifetime_plan) { %>
         <div class="success founder-status-card">
-          You are in the founding 100. This account is free for life.
+          You are in the founding 500. This account is free for life.
           <% if (user.founder_slot_number) { %>
             <strong>Founder slot #<%= user.founder_slot_number %>.</strong>
           <% } %>
@@ -100,6 +102,43 @@
           </div>
         </div>
         <p class="field-hint">Each new signup through your referral link adds 1 free month of service, up to 12 months total.</p>
+      </div>
+
+      <div class="card subtle-card analytics-snapshot-card">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Analytics snapshot</p>
+            <h2>What visitors did in the last 30 days</h2>
+          </div>
+          <a class="text-link" href="/analytics">View full analytics</a>
+        </div>
+        <div class="grid four analytics-snapshot-grid">
+          <div class="analytics-mini-stat">
+            <span>Views</span>
+            <strong><%= analyticsSnapshot.summary_30d.page_views %></strong>
+          </div>
+          <div class="analytics-mini-stat">
+            <span>Visitors</span>
+            <strong><%= analyticsSnapshot.summary_30d.unique_visitors %></strong>
+          </div>
+          <div class="analytics-mini-stat">
+            <span>Clicks</span>
+            <strong><%= analyticsSnapshot.summary_30d.link_clicks %></strong>
+          </div>
+          <div class="analytics-mini-stat">
+            <span>Leads</span>
+            <strong><%= analyticsSnapshot.summary_30d.leads %></strong>
+          </div>
+        </div>
+        <% if (analyticsSnapshot.top_link) { %>
+          <p class="field-hint">
+            Top link right now: <strong><%= analyticsSnapshot.top_link.label || 'Untitled Link' %></strong>
+            with <strong><%= analyticsSnapshot.top_link.clicks %></strong> click<%= analyticsSnapshot.top_link.clicks === 1 ? '' : 's' %>.
+          </p>
+        <% } else { %>
+          <p class="field-hint">Once people start visiting, you'll see your strongest links and sources here.</p>
+        <% } %>
+        <p class="field-hint">Automatic page backups are created before major changes, so live users can be rolled back safely if needed.</p>
       </div>
 
       <datalist id="link-label-suggestions">
@@ -226,6 +265,7 @@
             <% const suggestion = socialLinkSuggestions[index] || socialLinkSuggestions[socialLinkSuggestions.length - 1]; %>
             <% const hiddenRow = index >= initialVisibleLinkRows && !link.label && !link.url; %>
             <div class="link-row link-row-rich <%= hiddenRow ? 'is-hidden-empty' : '' %>" data-link-row>
+              <button class="link-drag-handle" type="button" data-link-drag-handle aria-label="Drag to reorder links" title="Drag to reorder links">::</button>
               <select name="link_section">
                 <% linkSectionOptions.forEach(option => { %>
                   <option value="<%= option.value %>" <%= link.section === option.value ? 'selected' : '' %>><%= option.label %></option>

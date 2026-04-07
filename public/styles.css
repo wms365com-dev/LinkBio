@@ -710,11 +710,35 @@ p {
 }
 
 .link-row-rich {
-  grid-template-columns: minmax(130px, 0.45fr) minmax(160px, 0.7fr) minmax(0, 1.2fr);
+  grid-template-columns: 46px minmax(130px, 0.45fr) minmax(160px, 0.7fr) minmax(0, 1.2fr);
 }
 
 .link-row.is-hidden-empty {
   display: none;
+}
+
+.link-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  border: 1px dashed rgba(29, 26, 23, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--muted);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  cursor: grab;
+  box-shadow: none;
+}
+
+.link-drag-handle:active {
+  cursor: grabbing;
+}
+
+.link-row.is-dragging {
+  opacity: 0.55;
 }
 
 .link-builder-tools {
@@ -1430,15 +1454,237 @@ th {
   align-items: start;
 }
 
+.analytics-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(280px, 0.88fr);
+  gap: 22px;
+  align-items: start;
+}
+
 .studio-panel,
 .studio-preview-panel,
 .billing-main,
-.billing-side {
+.billing-side,
+.analytics-main,
+.analytics-side {
   margin-bottom: 0;
 }
 
 .referral-card {
   margin-bottom: 18px;
+}
+
+.analytics-snapshot-card {
+  margin-bottom: 18px;
+}
+
+.analytics-snapshot-grid {
+  gap: 14px;
+}
+
+.analytics-mini-stat {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(29, 26, 23, 0.08);
+}
+
+.analytics-mini-stat span,
+.analytics-stat-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.analytics-mini-stat strong {
+  display: block;
+  margin-top: 10px;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+
+.analytics-main > .section-header {
+  margin-bottom: 22px;
+}
+
+.analytics-intro {
+  max-width: 620px;
+}
+
+.analytics-meta {
+  min-width: 220px;
+}
+
+.analytics-summary-grid {
+  margin-bottom: 22px;
+}
+
+.analytics-stat-card {
+  min-height: 138px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  margin-bottom: 0;
+}
+
+.analytics-stat-card strong {
+  display: block;
+  margin-top: 12px;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 42px;
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+}
+
+.analytics-stat-card small,
+.analytics-mini-stat small,
+.analytics-list-copy small,
+.analytics-list-meta span,
+.analytics-activity-meta span,
+.analytics-activity-meta small {
+  color: var(--muted);
+}
+
+.analytics-section {
+  margin-bottom: 0;
+}
+
+.analytics-empty-state {
+  text-align: left;
+}
+
+.analytics-inline-empty {
+  margin: 0;
+  padding: 18px;
+  text-align: left;
+}
+
+.analytics-trend-list,
+.analytics-list,
+.analytics-activity-list,
+.analytics-tip-list {
+  display: grid;
+  gap: 14px;
+}
+
+.analytics-trend-row,
+.analytics-list-row,
+.analytics-activity-item {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(29, 26, 23, 0.08);
+}
+
+.analytics-trend-row {
+  grid-template-columns: 86px minmax(0, 1fr) 140px;
+  align-items: center;
+}
+
+.analytics-trend-label strong,
+.analytics-list-copy strong,
+.analytics-activity-item strong {
+  display: block;
+}
+
+.analytics-trend-bars {
+  display: grid;
+  gap: 8px;
+}
+
+.analytics-trend-track {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(29, 26, 23, 0.08);
+}
+
+.analytics-trend-bar {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.analytics-trend-bar-views {
+  background: linear-gradient(90deg, rgba(17, 24, 39, 0.85), rgba(29, 78, 216, 0.75));
+}
+
+.analytics-trend-bar-clicks {
+  background: linear-gradient(90deg, rgba(231, 111, 81, 0.88), rgba(249, 115, 22, 0.88));
+}
+
+.analytics-trend-bar-leads {
+  background: linear-gradient(90deg, rgba(36, 156, 120, 0.88), rgba(69, 179, 126, 0.88));
+}
+
+.analytics-trend-counts {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: right;
+}
+
+.analytics-list-row,
+.analytics-activity-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.analytics-list-copy,
+.analytics-activity-item > div:first-child {
+  min-width: 0;
+}
+
+.analytics-list-copy strong,
+.analytics-list-copy small,
+.analytics-activity-item p {
+  overflow-wrap: anywhere;
+}
+
+.analytics-list-meta,
+.analytics-activity-meta {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  text-align: right;
+}
+
+.analytics-list-meta strong {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 28px;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.analytics-side-card {
+  margin-top: 22px;
+  margin-bottom: 0;
+}
+
+.revision-list-row {
+  align-items: center;
+}
+
+.revision-actions {
+  margin-top: 0;
+  justify-content: flex-end;
+}
+
+.analytics-tip-item {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(29, 26, 23, 0.08);
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 .studio-meta {
@@ -1566,6 +1812,7 @@ th {
   .hero-card,
   .studio-layout,
   .billing-layout,
+  .analytics-layout,
   .auth-grid,
   .grid.two,
   .template-grid,
@@ -1792,8 +2039,24 @@ th {
 
   .auth-grid,
   .studio-layout,
-  .billing-layout {
+  .billing-layout,
+  .analytics-layout {
     gap: 16px;
+  }
+
+  .analytics-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analytics-trend-row {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-trend-counts,
+  .analytics-list-meta,
+  .analytics-activity-meta {
+    justify-items: start;
+    text-align: left;
   }
 
   .mobile-studio-nav {
@@ -2002,6 +2265,25 @@ th {
 
   .lead {
     font-size: 16px;
+  }
+
+  .analytics-summary-grid,
+  .analytics-snapshot-grid,
+  .analytics-snapshot-grid-compact {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-stat-card strong {
+    font-size: 36px;
+  }
+
+  .analytics-list-row,
+  .analytics-activity-item {
+    grid-template-columns: 1fr;
+  }
+
+  .revision-actions {
+    justify-content: stretch;
   }
 
   .phone-frame {

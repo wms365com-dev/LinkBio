@@ -20,6 +20,8 @@
   document.querySelectorAll("[data-link-builder]").forEach((builder) => {
     const revealButton = builder.querySelector("[data-reveal-links]");
     const rows = Array.from(builder.querySelectorAll("[data-link-row]"));
+    const tools = builder.querySelector(".link-builder-tools");
+    let draggedRow = null;
 
     const syncRevealButton = () => {
       if (!revealButton) {
@@ -37,9 +39,96 @@
         .forEach((row) => row.classList.remove("is-hidden-empty"));
 
       syncRevealButton();
+      syncDragState();
+    });
+
+    const getVisibleRows = () => rows.filter((row) => !row.classList.contains("is-hidden-empty"));
+
+    const syncDragState = () => {
+      rows.forEach((row) => {
+        const handle = row.querySelector("[data-link-drag-handle]");
+        const canDrag = !row.classList.contains("is-hidden-empty");
+        row.removeAttribute("draggable");
+        row.classList.remove("is-dragging");
+
+        if (handle) {
+          handle.hidden = !canDrag;
+          handle.disabled = !canDrag;
+        }
+      });
+    };
+
+    const getDragAfterElement = (clientY) => {
+      return getVisibleRows()
+        .filter((row) => row !== draggedRow)
+        .reduce((closest, row) => {
+          const box = row.getBoundingClientRect();
+          const offset = clientY - box.top - (box.height / 2);
+
+          if (offset < 0 && offset > closest.offset) {
+            return { offset, element: row };
+          }
+
+          return closest;
+        }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+    };
+
+    rows.forEach((row) => {
+      const handle = row.querySelector("[data-link-drag-handle]");
+      const enableDragging = () => {
+        if (!row.classList.contains("is-hidden-empty")) {
+          row.setAttribute("draggable", "true");
+        }
+      };
+      const disableDragging = () => {
+        row.removeAttribute("draggable");
+      };
+
+      handle?.addEventListener("mousedown", enableDragging);
+      handle?.addEventListener("touchstart", enableDragging, { passive: true });
+      handle?.addEventListener("mouseup", disableDragging);
+      handle?.addEventListener("mouseleave", disableDragging);
+      handle?.addEventListener("touchend", disableDragging);
+
+      row.addEventListener("dragstart", (event) => {
+        if (row.classList.contains("is-hidden-empty")) {
+          event.preventDefault();
+          return;
+        }
+
+        draggedRow = row;
+        row.classList.add("is-dragging");
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", row.querySelector("input[name='link_label']")?.value || "link");
+        }
+      });
+
+      row.addEventListener("dragend", () => {
+        disableDragging();
+        row.classList.remove("is-dragging");
+        draggedRow = null;
+      });
+    });
+
+    builder.addEventListener("dragover", (event) => {
+      if (!draggedRow) {
+        return;
+      }
+
+      event.preventDefault();
+      const afterElement = getDragAfterElement(event.clientY);
+      if (afterElement) {
+        builder.insertBefore(draggedRow, afterElement);
+      } else if (tools) {
+        builder.insertBefore(draggedRow, tools);
+      } else {
+        builder.appendChild(draggedRow);
+      }
     });
 
     syncRevealButton();
+    syncDragState();
   });
 
   document.querySelectorAll("[data-share-page]").forEach((button) => {

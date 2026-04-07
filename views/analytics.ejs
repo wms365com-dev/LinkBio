@@ -1,0 +1,287 @@
+<%- include("partials/header") %>
+
+<div class="site-shell">
+  <header class="marketing-nav container">
+    <a class="brand-mark" href="/">myurlc.com</a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="/studio/export">Export JSON</a>
+      <% if (user.can_access_studio) { %>
+        <a class="btn btn-ghost" href="/studio">Back to studio</a>
+      <% } %>
+      <% if (order && order.public_url) { %>
+        <a class="btn btn-ghost" href="<%= order.public_url %>" target="_blank" rel="noreferrer">Open page</a>
+      <% } %>
+      <form method="POST" action="/logout">
+        <button class="btn btn-secondary" type="submit">Log out</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="container analytics-layout">
+    <section class="card analytics-main">
+      <div class="section-header">
+        <div>
+          <p class="eyebrow">Reports & analytics</p>
+          <h1>See how your page is performing</h1>
+          <p class="section-copy analytics-intro">
+            Track visits, clicks, leads, and traffic sources so you can improve your page like a real growth funnel.
+          </p>
+        </div>
+        <div class="studio-meta analytics-meta">
+          <span class="pill <%= order && order.is_published ? 'pill-live' : '' %>">
+            <%= order && order.is_published ? 'Live tracking' : 'Draft page' %>
+          </span>
+          <% if (order && order.public_url) { %>
+            <span class="studio-url"><%= order.public_url %></span>
+          <% } %>
+        </div>
+      </div>
+
+      <% if (error) { %>
+        <div class="error"><%= error %></div>
+      <% } %>
+
+      <% if (info) { %>
+        <div class="notice"><%= info %></div>
+      <% } %>
+
+      <div class="grid three analytics-summary-grid">
+        <div class="card subtle-card analytics-stat-card">
+          <span>30-day views</span>
+          <strong><%= report.summary_30d.page_views %></strong>
+          <small><%= report.summary_all_time.page_views %> all-time</small>
+        </div>
+        <div class="card subtle-card analytics-stat-card">
+          <span>Unique visitors</span>
+          <strong><%= report.summary_30d.unique_visitors %></strong>
+          <small><%= report.summary_all_time.unique_visitors %> all-time</small>
+        </div>
+        <div class="card subtle-card analytics-stat-card">
+          <span>Link clicks</span>
+          <strong><%= report.summary_30d.link_clicks %></strong>
+          <small><%= report.summary_30d.ctr_percent %>% click rate</small>
+        </div>
+        <div class="card subtle-card analytics-stat-card">
+          <span>Leads captured</span>
+          <strong><%= report.summary_30d.leads %></strong>
+          <small><%= report.summary_30d.lead_rate_percent %>% lead rate</small>
+        </div>
+        <div class="card subtle-card analytics-stat-card">
+          <span>Last 7 days</span>
+          <strong><%= report.summary_7d.page_views %></strong>
+          <small>Views in the last week</small>
+        </div>
+        <div class="card subtle-card analytics-stat-card">
+          <span>Momentum</span>
+          <strong><%= report.summary_7d.link_clicks %></strong>
+          <small>Clicks in the last week</small>
+        </div>
+      </div>
+
+      <% if (!report.has_data) { %>
+        <div class="card subtle-card empty-state analytics-empty-state">
+          <h2>No live traffic yet</h2>
+          <p class="section-copy">
+            Publish your page, share it on your socials, and this dashboard will start filling in with visits, clicks, and leads.
+          </p>
+          <div class="actions">
+            <% if (user.can_access_studio) { %>
+              <a class="btn" href="/studio">Open studio</a>
+            <% } %>
+            <% if (order && order.public_url) { %>
+              <a class="btn btn-ghost" href="<%= order.public_url %>" target="_blank" rel="noreferrer">Preview page</a>
+            <% } %>
+          </div>
+        </div>
+      <% } else { %>
+        <section class="card subtle-card analytics-section">
+          <div class="section-header compact-header">
+            <div>
+              <h2>Last 7 days</h2>
+              <p class="section-copy">Daily views, clicks, and leads so you can spot what is gaining momentum.</p>
+            </div>
+          </div>
+          <div class="analytics-trend-list">
+            <% report.daily_series.forEach(day => { %>
+              <div class="analytics-trend-row">
+                <div class="analytics-trend-label">
+                  <strong><%= day.label %></strong>
+                </div>
+                <div class="analytics-trend-bars">
+                  <div class="analytics-trend-track">
+                    <div class="analytics-trend-bar analytics-trend-bar-views" style="width:<%= day.page_views_width %>%"></div>
+                  </div>
+                  <div class="analytics-trend-track">
+                    <div class="analytics-trend-bar analytics-trend-bar-clicks" style="width:<%= day.link_clicks_width %>%"></div>
+                  </div>
+                  <div class="analytics-trend-track">
+                    <div class="analytics-trend-bar analytics-trend-bar-leads" style="width:<%= day.leads_width %>%"></div>
+                  </div>
+                </div>
+                <div class="analytics-trend-counts">
+                  <span><%= day.page_views %> views</span>
+                  <span><%= day.link_clicks %> clicks</span>
+                  <span><%= day.leads %> leads</span>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </section>
+
+        <div class="grid two analytics-detail-grid">
+          <section class="card subtle-card analytics-section">
+            <div class="section-header compact-header">
+              <div>
+                <h2>Top links</h2>
+                <p class="section-copy">See which buttons are getting the most attention.</p>
+              </div>
+            </div>
+            <% if (report.top_links.length > 0) { %>
+              <div class="analytics-list">
+                <% report.top_links.forEach(link => { %>
+                  <div class="analytics-list-row">
+                    <div class="analytics-list-copy">
+                      <strong><%= link.label || 'Untitled Link' %></strong>
+                      <small><%= link.url %></small>
+                    </div>
+                    <div class="analytics-list-meta">
+                      <strong><%= link.clicks %></strong>
+                      <span><%= link.relative_last_clicked_at || 'No clicks yet' %></span>
+                    </div>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="empty-state analytics-inline-empty">
+                <p class="section-copy">Add some links in the studio and they'll appear here once your page is published.</p>
+              </div>
+            <% } %>
+          </section>
+
+          <section class="card subtle-card analytics-section">
+            <div class="section-header compact-header">
+              <div>
+                <h2>Traffic sources</h2>
+                <p class="section-copy">Find out where your recent visitors are coming from.</p>
+              </div>
+            </div>
+            <% if (report.top_referrers.length > 0) { %>
+              <div class="analytics-list">
+                <% report.top_referrers.forEach(source => { %>
+                  <div class="analytics-list-row">
+                    <div class="analytics-list-copy">
+                      <strong><%= source.label %></strong>
+                      <small><%= source.host === 'direct' ? 'No referrer detected' : source.host %></small>
+                    </div>
+                    <div class="analytics-list-meta">
+                      <strong><%= source.visits %></strong>
+                      <span>visits</span>
+                    </div>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="empty-state analytics-inline-empty">
+                <p class="section-copy">Recent traffic sources will appear here after people start visiting your page from social posts, messages, and bios.</p>
+              </div>
+            <% } %>
+          </section>
+        </div>
+
+        <div class="grid two analytics-detail-grid">
+          <section class="card subtle-card analytics-section">
+            <div class="section-header compact-header">
+              <div>
+                <h2>Recent activity</h2>
+                <p class="section-copy">A live feed of what visitors have done on your page.</p>
+              </div>
+            </div>
+            <% if (report.recent_activity.length > 0) { %>
+              <div class="analytics-activity-list">
+                <% report.recent_activity.forEach(event => { %>
+                  <div class="analytics-activity-item">
+                    <div>
+                      <strong><%= event.event_label %></strong>
+                      <p class="section-copy"><%= event.detail %></p>
+                    </div>
+                    <div class="analytics-activity-meta">
+                      <span><%= event.relative_created_at %></span>
+                      <small><%= event.formatted_created_at %></small>
+                    </div>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="empty-state analytics-inline-empty">
+                <p class="section-copy">Activity will show here as soon as someone views or clicks around your live page.</p>
+              </div>
+            <% } %>
+          </section>
+
+          <section class="card subtle-card analytics-section">
+            <div class="section-header compact-header">
+              <div>
+                <h2>Recent leads</h2>
+                <p class="section-copy">Messages collected from your page lead form.</p>
+              </div>
+            </div>
+            <% if (report.recent_leads.length > 0) { %>
+              <div class="lead-list">
+                <% report.recent_leads.forEach(lead => { %>
+                  <div class="lead-item">
+                    <strong><%= lead.name || 'New lead' %></strong>
+                    <span><%= lead.email || 'No email provided' %></span>
+                    <p><%= lead.message || 'No message added.' %></p>
+                    <small><%= lead.relative_created_at %> | <%= lead.source_label %></small>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="empty-state analytics-inline-empty">
+                <p class="section-copy">Leads will show up here as soon as visitors use your contact form.</p>
+              </div>
+            <% } %>
+          </section>
+        </div>
+      <% } %>
+    </section>
+
+    <aside class="card analytics-side">
+      <p class="eyebrow">Quick snapshot</p>
+      <h2><%= order && order.is_published ? 'Your page is collecting signals' : 'Get ready to launch' %></h2>
+      <div class="billing-status-list">
+        <div class="status-row">
+          <span>Page status</span>
+          <strong><%= order && order.is_published ? 'Published' : 'Draft' %></strong>
+        </div>
+        <div class="status-row">
+          <span>Username</span>
+          <strong>@<%= order.slug %></strong>
+        </div>
+        <div class="status-row">
+          <span>30-day click rate</span>
+          <strong><%= report.summary_30d.ctr_percent %>%</strong>
+        </div>
+        <div class="status-row">
+          <span>30-day lead rate</span>
+          <strong><%= report.summary_30d.lead_rate_percent %>%</strong>
+        </div>
+        <div class="status-row">
+          <span>Referral link</span>
+          <strong class="billing-url"><%= user.referral_share_url %></strong>
+        </div>
+      </div>
+
+      <div class="card subtle-card analytics-side-card">
+        <p class="eyebrow">How to grow faster</p>
+        <div class="analytics-tip-list">
+          <div class="analytics-tip-item">Share your page in Instagram, TikTok, WhatsApp, and Facebook bios so visits stack from more than one source.</div>
+          <div class="analytics-tip-item">Move your strongest offer into the top section if one link is clearly outperforming the rest.</div>
+          <div class="analytics-tip-item">Turn on the lead form and use a clear call to action when you want more messages instead of just clicks.</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<%- include("partials/footer") %>

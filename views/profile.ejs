@@ -95,7 +95,7 @@
             <div class="success"><%= leadSuccess %></div>
           <% } %>
 
-          <form method="POST" action="/p/<%= order.slug %>/lead" class="form-stack">
+          <form method="POST" action="<%= order.lead_form_action_path %>" class="form-stack">
             <input name="name" placeholder="Your name" required />
             <input name="email" type="email" placeholder="Your email" required />
             <textarea name="message" rows="4" placeholder="How can they help?" required></textarea>

@@ -104,6 +104,40 @@
         </div>
       </div>
 
+      <div class="card subtle-card">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Safety net</p>
+            <h2>Version history</h2>
+            <p class="section-copy">Automatic restore points are saved before major page changes so you can roll a customer back safely.</p>
+          </div>
+        </div>
+        <% if (pageRevisions.length > 0) { %>
+          <div class="analytics-list">
+            <% pageRevisions.forEach(revision => { %>
+              <div class="analytics-list-row revision-list-row">
+                <div class="analytics-list-copy">
+                  <strong><%= revision.reason %></strong>
+                  <small>
+                    <%= revision.actor_label %> | <%= revision.snapshot_status %> | @<%= revision.snapshot_slug %>
+                  </small>
+                  <small><%= revision.formatted_created_at %> | <%= revision.relative_created_at %></small>
+                </div>
+                <div class="actions revision-actions">
+                  <form method="POST" action="/admin/order/<%= order.id %>/revisions/<%= revision.id %>/restore">
+                    <button class="btn btn-ghost" type="submit">Restore</button>
+                  </form>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="empty-state analytics-inline-empty">
+            <p class="section-copy">Restore points will start appearing here after the first page edit or publish action.</p>
+          </div>
+        <% } %>
+      </div>
+
       <% if (recentLeads.length > 0) { %>
         <div class="card subtle-card">
           <div class="section-header">
@@ -253,6 +287,7 @@
             <% const suggestion = socialLinkSuggestions[index] || socialLinkSuggestions[socialLinkSuggestions.length - 1]; %>
             <% const hiddenRow = index >= initialVisibleLinkRows && !link.label && !link.url; %>
             <div class="link-row link-row-rich <%= hiddenRow ? 'is-hidden-empty' : '' %>" data-link-row>
+              <button class="link-drag-handle" type="button" data-link-drag-handle aria-label="Drag to reorder links" title="Drag to reorder links">::</button>
               <select name="link_section">
                 <% linkSectionOptions.forEach(option => { %>
                   <option value="<%= option.value %>" <%= link.section === option.value ? 'selected' : '' %>><%= option.label %></option>

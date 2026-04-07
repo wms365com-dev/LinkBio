@@ -107,6 +107,7 @@
             <% const suggestion = socialLinkSuggestions[index] || socialLinkSuggestions[socialLinkSuggestions.length - 1]; %>
             <% const hiddenRow = index >= initialVisibleLinkRows && !link.label && !link.url; %>
             <div class="link-row link-row-rich <%= hiddenRow ? 'is-hidden-empty' : '' %>" data-link-row>
+              <button class="link-drag-handle" type="button" data-link-drag-handle aria-label="Drag to reorder links" title="Drag to reorder links">::</button>
               <select name="link_section">
                 <% linkSectionOptions.forEach(option => { %>
                   <option value="<%= option.value %>" <%= link.section === option.value ? 'selected' : '' %>><%= option.label %></option>

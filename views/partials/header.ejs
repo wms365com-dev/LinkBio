@@ -1,16 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <% const documentTitle = pageTitle ? `${pageTitle} | ${siteName || "myurlc.com"}` : (siteName || "myurlc.com"); %>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#131622" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title><%= pageTitle ? `${pageTitle} | myurlc.com` : "myurlc.com" %></title>
-  <meta
-    name="description"
-    content="Sell branded link-in-bio pages with a simple hosted intake flow, admin dashboard, and public profile pages."
-  />
+  <title><%= documentTitle %></title>
+  <meta name="description" content="<%= metaDescription %>" />
+  <meta name="robots" content="<%= metaRobots %>" />
+  <link rel="canonical" href="<%= canonicalUrl %>" />
+  <meta property="og:site_name" content="<%= siteName || 'myurlc.com' %>" />
+  <meta property="og:title" content="<%= documentTitle %>" />
+  <meta property="og:description" content="<%= metaDescription %>" />
+  <meta property="og:url" content="<%= canonicalUrl %>" />
+  <meta property="og:type" content="<%= ogType || 'website' %>" />
+  <meta name="twitter:card" content="<%= ogImage ? 'summary_large_image' : 'summary' %>" />
+  <meta name="twitter:title" content="<%= documentTitle %>" />
+  <meta name="twitter:description" content="<%= metaDescription %>" />
+  <% if (ogImage) { %>
+    <meta property="og:image" content="<%= ogImage %>" />
+    <meta name="twitter:image" content="<%= ogImage %>" />
+  <% } %>
+  <% if (structuredData) { %>
+    <script type="application/ld+json"><%- JSON.stringify(structuredData) %></script>
+  <% } %>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link

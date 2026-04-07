@@ -8,12 +8,15 @@ const session = require("express-session");
 const multer = require("multer");
 const methodOverride = require("method-override");
 const Stripe = require("stripe");
+const { Pool } = require("pg");
 const slugify = require("slugify");
 
 const app = express();
 
 const PORT = Number(process.env.PORT || 3000);
 const CANONICAL_PUBLIC_HOST = "www.myurlc.com";
+const SITE_NAME = "myurlc.com";
+const DEFAULT_META_DESCRIPTION = "Create a free link in bio page for your brand, business, or creator profile on myurlc.com. Publish links, collect leads, and grow organically.";
 const REFERRAL_CODE_MAX_LENGTH = 12;
 const BASE_URL = normalizeBaseUrl(process.env.BASE_URL || `http://localhost:${PORT}`);
 const SESSION_SECRET = process.env.SESSION_SECRET || "dev_secret_change_me";
@@ -27,8 +30,12 @@ const PLAN_NAME = process.env.PLAN_NAME || "myurlc.com Pro";
 const PLAN_PRICE_DISPLAY = process.env.PLAN_PRICE_DISPLAY || "$9/month";
 const BILLING_PRICE_ID = process.env.BILLING_PRICE_ID || STRIPE_PRICE_ID;
 const BILLING_CHECKOUT_MODE = process.env.BILLING_CHECKOUT_MODE || "payment";
+const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
+const DATABASE_SSL = String(process.env.DATABASE_SSL || "").trim().toLowerCase();
+const STORE_SNAPSHOT_KEY = "primary";
 
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
+const dbPool = DATABASE_URL ? new Pool(buildDatabaseConnectionOptions()) : null;
 
 const THEME_OPTIONS = [
   { value: "midnight", label: "Midnight Glass" },
@@ -65,14 +72,16 @@ const DEFAULT_LINK_SECTION = "featured";
 const INITIAL_VISIBLE_LINK_ROWS = 6;
 const MAX_LINKS = 20;
 const STUDIO_LINK_ROWS = MAX_LINKS;
+const PAGE_REVISION_LIMIT = Number(process.env.PAGE_REVISION_LIMIT || 25);
 const PLAN_ACCESS_DAYS = Number(process.env.PLAN_ACCESS_DAYS || 30);
 const REFERRAL_BONUS_MONTHS_MAX = Number(process.env.REFERRAL_BONUS_MONTHS_MAX || 12);
-const FOUNDING_MEMBER_LIMIT = Number(process.env.FOUNDING_MEMBER_LIMIT || 100);
+const FOUNDING_MEMBER_LIMIT = Number(process.env.FOUNDING_MEMBER_LIMIT || 500);
 const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 32;
 const USERNAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const RESERVED_USERNAMES = new Set([
   "admin",
+  "analytics",
   "api",
   "billing",
   "buy",
@@ -93,6 +102,12 @@ const RESERVED_USERNAMES = new Set([
 const dataDir = fs.existsSync("/data") ? "/data" : path.join(__dirname, "data");
 const uploadDir = path.join(dataDir, "uploads");
 const dataFile = path.join(dataDir, "linkbio.json");
+let activeStore = normalizeStore();
+let storeLoadedFrom = "memory";
+let databaseReady = false;
+let databaseLastError = "";
+let storePersistenceQueue = Promise.resolve();
+const storeReadyPromise = initializeStore();
 
 fs.mkdirSync(dataDir, { recursive: true });
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -186,6 +201,7 @@ function normalizeStore(store = {}) {
   return {
     users: Array.isArray(store.users) ? store.users : [],
     orders: Array.isArray(store.orders) ? store.orders : [],
+    page_revisions: Array.isArray(store.page_revisions) ? store.page_revisions : [],
     usernames: Array.isArray(store.usernames) ? store.usernames : [],
     analytics_events: Array.isArray(store.analytics_events) ? store.analytics_events : [],
     leads: Array.isArray(store.leads) ? store.leads : [],
@@ -193,21 +209,148 @@ function normalizeStore(store = {}) {
   };
 }
 
-if (!fs.existsSync(dataFile)) {
-  fs.writeFileSync(dataFile, JSON.stringify(normalizeStore(), null, 2));
+function cloneStore(store = activeStore) {
+  return JSON.parse(JSON.stringify(normalizeStore(store)));
 }
 
-function readStore() {
+function buildDatabaseConnectionOptions() {
+  const useSsl = DATABASE_SSL === "require"
+    || (DATABASE_SSL !== "disable" && !/localhost|127\.0\.0\.1/i.test(DATABASE_URL));
+
+  return {
+    connectionString: DATABASE_URL,
+    ssl: useSsl ? { rejectUnauthorized: false } : false
+  };
+}
+
+function readStoreFromDisk() {
   try {
-    const raw = fs.readFileSync(dataFile, "utf8");
-    return syncStore(JSON.parse(raw));
+    if (!fs.existsSync(dataFile)) {
+      return normalizeStore();
+    }
+
+    return normalizeStore(JSON.parse(fs.readFileSync(dataFile, "utf8")));
   } catch (error) {
-    return syncStore(normalizeStore());
+    return normalizeStore();
   }
 }
 
-function writeStore(store) {
+function persistStoreToDisk(store) {
   fs.writeFileSync(dataFile, JSON.stringify(syncStore(store), null, 2));
+}
+
+async function ensureDatabaseSchema() {
+  if (!dbPool) {
+    return;
+  }
+
+  await dbPool.query(`
+    CREATE TABLE IF NOT EXISTS app_store_snapshots (
+      store_key TEXT PRIMARY KEY,
+      payload JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
+async function readStoreFromDatabase() {
+  if (!dbPool) {
+    return null;
+  }
+
+  const result = await dbPool.query(
+    "SELECT payload FROM app_store_snapshots WHERE store_key = $1 LIMIT 1",
+    [STORE_SNAPSHOT_KEY]
+  );
+
+  if (!result.rows[0] || !result.rows[0].payload) {
+    return null;
+  }
+
+  return normalizeStore(result.rows[0].payload);
+}
+
+async function persistStoreToDatabase(store) {
+  if (!dbPool) {
+    return;
+  }
+
+  await dbPool.query(
+    `
+      INSERT INTO app_store_snapshots (store_key, payload, updated_at)
+      VALUES ($1, $2::jsonb, NOW())
+      ON CONFLICT (store_key)
+      DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+    `,
+    [STORE_SNAPSHOT_KEY, JSON.stringify(syncStore(store))]
+  );
+}
+
+function queueDatabaseStoreWrite(store) {
+  if (!dbPool) {
+    return storePersistenceQueue;
+  }
+
+  const snapshot = cloneStore(store);
+  storePersistenceQueue = storePersistenceQueue
+    .then(async () => {
+      await persistStoreToDatabase(snapshot);
+      databaseReady = true;
+      databaseLastError = "";
+    })
+    .catch((error) => {
+      databaseReady = false;
+      databaseLastError = error.message;
+    });
+
+  return storePersistenceQueue;
+}
+
+async function initializeStore() {
+  const fileStore = readStoreFromDisk();
+  activeStore = syncStore(fileStore);
+
+  if (!fs.existsSync(dataFile)) {
+    persistStoreToDisk(activeStore);
+  }
+
+  if (!dbPool) {
+    storeLoadedFrom = fs.existsSync(dataFile) ? "volume-json" : "memory";
+    return activeStore;
+  }
+
+  try {
+    await ensureDatabaseSchema();
+    const databaseStore = await readStoreFromDatabase();
+    if (databaseStore) {
+      activeStore = syncStore(databaseStore);
+      storeLoadedFrom = "postgres";
+      persistStoreToDisk(activeStore);
+    } else {
+      await persistStoreToDatabase(activeStore);
+      storeLoadedFrom = fs.existsSync(dataFile) ? "volume-json-seeded-to-postgres" : "postgres-seeded";
+    }
+
+    databaseReady = true;
+    databaseLastError = "";
+  } catch (error) {
+    databaseReady = false;
+    databaseLastError = error.message;
+    storeLoadedFrom = fs.existsSync(dataFile) ? "volume-json-fallback" : "memory-fallback";
+  }
+
+  return activeStore;
+}
+
+function readStore() {
+  return cloneStore(activeStore);
+}
+
+function writeStore(store) {
+  activeStore = syncStore(store);
+  persistStoreToDisk(activeStore);
+  queueDatabaseStoreWrite(activeStore);
+  return cloneStore(activeStore);
 }
 
 function nextId(records) {
@@ -276,6 +419,140 @@ function normalizeBaseUrl(value) {
   } catch (error) {
     return fallback;
   }
+}
+
+function absoluteUrl(pathname = "/") {
+  const raw = String(pathname || "").trim();
+  if (!raw || raw === "/") {
+    return BASE_URL;
+  }
+
+  if (/^https?:\/\//i.test(raw)) {
+    return raw;
+  }
+
+  return `${BASE_URL}${raw.startsWith("/") ? raw : `/${raw}`}`;
+}
+
+function buildPublicPagePath(slug) {
+  const normalized = normalizeUsername(slug);
+  return normalized ? `/${normalized}` : "/";
+}
+
+function buildPublicLeadPath(slug) {
+  const normalized = normalizeUsername(slug);
+  return normalized ? `/${normalized}/lead` : "/lead";
+}
+
+function sanitizeMetaText(value, fallback = DEFAULT_META_DESCRIPTION, maxLength = 160) {
+  const normalized = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const text = normalized || fallback;
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function buildSeoData(overrides = {}) {
+  return {
+    metaDescription: sanitizeMetaText(overrides.metaDescription, DEFAULT_META_DESCRIPTION),
+    canonicalUrl: overrides.canonicalUrl || BASE_URL,
+    metaRobots: overrides.metaRobots || "index,follow",
+    ogType: overrides.ogType || "website",
+    ogImage: overrides.ogImage || "",
+    structuredData: overrides.structuredData || null
+  };
+}
+
+function escapeXml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function formatSitemapDate(value) {
+  const parsed = parseDateValue(value);
+  return parsed ? parsed.toISOString() : new Date().toISOString();
+}
+
+function buildHomeStructuredData() {
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: SITE_NAME,
+      url: BASE_URL
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: BASE_URL,
+      description: DEFAULT_META_DESCRIPTION
+    }
+  ];
+}
+
+function buildProfileStructuredData(order, description) {
+  const sameAs = Array.isArray(order.social_links)
+    ? order.social_links.map((link) => link.url).filter(Boolean).slice(0, 10)
+    : [];
+  const entityType = order.business_name ? "Organization" : "Person";
+  const entity = {
+    "@type": entityType,
+    name: order.business_name || order.full_name || order.slug,
+    description
+  };
+
+  if (sameAs.length > 0) {
+    entity.sameAs = sameAs;
+  }
+
+  if (order.profile_media && order.profile_media_type === "image") {
+    entity.image = absoluteUrl(order.profile_media);
+  }
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    name: `${order.business_name || order.full_name || order.slug} on ${SITE_NAME}`,
+    url: order.public_url,
+    description,
+    mainEntity: entity
+  };
+}
+
+function buildSitemapEntries() {
+  const latestPublishedDate = listOrders()
+    .filter((order) => order.is_published)
+    .map((order) => formatSitemapDate(order.updated_at || order.created_at))
+    .sort()
+    .reverse()[0] || new Date().toISOString();
+
+  const staticEntries = [
+    { loc: absoluteUrl("/"), lastmod: latestPublishedDate, changefreq: "daily", priority: "1.0" },
+    { loc: absoluteUrl("/signup"), lastmod: latestPublishedDate, changefreq: "weekly", priority: "0.9" },
+    { loc: absoluteUrl("/buy"), lastmod: latestPublishedDate, changefreq: "weekly", priority: "0.8" }
+  ];
+
+  const profileEntries = listOrders()
+    .filter((order) => order.is_published)
+    .sort((left, right) => new Date(right.updated_at || right.created_at || 0).getTime() - new Date(left.updated_at || left.created_at || 0).getTime())
+    .map((order) => ({
+      loc: absoluteUrl(buildPublicPagePath(order.slug)),
+      lastmod: formatSitemapDate(order.updated_at || order.created_at),
+      changefreq: "weekly",
+      priority: "0.7"
+    }));
+
+  return [...staticEntries, ...profileEntries];
 }
 
 function makeSlug(text) {
@@ -1229,8 +1506,65 @@ function listAnalyticsEvents() {
   });
 }
 
+function normalizeReferrerHost(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(raw.includes("://") ? raw : `https://${raw}`);
+    return parsed.hostname.toLowerCase();
+  } catch (error) {
+    return "";
+  }
+}
+
+function getRequestClientIp(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] || "")
+    .split(",")
+    .map((part) => part.trim())
+    .find(Boolean);
+  return forwarded || req.ip || req.socket?.remoteAddress || "";
+}
+
+function isLikelyBotRequest(req) {
+  const userAgent = String(req.get("user-agent") || "");
+  return /(bot|crawl|spider|slurp|headless|facebookexternalhit|preview|monitor|uptime|wget|curl|linkedinbot|embedly|discordbot|telegrambot|whatsapp)/i.test(userAgent);
+}
+
+function buildVisitorKey(req) {
+  if (!req || isLikelyBotRequest(req)) {
+    return "";
+  }
+
+  const ip = getRequestClientIp(req);
+  const userAgent = String(req.get("user-agent") || "").trim();
+  if (!ip && !userAgent) {
+    return "";
+  }
+
+  return crypto
+    .createHash("sha256")
+    .update(`${ip}|${userAgent}`)
+    .digest("hex")
+    .slice(0, 24);
+}
+
+function buildRequestAnalyticsContext(req) {
+  const referrerUrl = String(req.get("referer") || req.get("referrer") || "").trim();
+  return {
+    visitor_key: buildVisitorKey(req),
+    referrer_host: normalizeReferrerHost(referrerUrl),
+    referrer_url: referrerUrl,
+    request_path: String(req.originalUrl || req.path || "").trim(),
+    user_agent: String(req.get("user-agent") || "").trim().slice(0, 255)
+  };
+}
+
 function createAnalyticsEvent(input) {
   const store = readStore();
+  const linkIndex = Number(input.link_index);
   const event = {
     id: nextId(store.analytics_events),
     order_id: input.order_id || null,
@@ -1238,6 +1572,12 @@ function createAnalyticsEvent(input) {
     event_type: input.event_type,
     link_label: input.link_label || null,
     link_url: input.link_url || null,
+    link_index: Number.isInteger(linkIndex) ? linkIndex : null,
+    visitor_key: String(input.visitor_key || "").trim() || null,
+    referrer_host: normalizeReferrerHost(input.referrer_host || input.referrer_url || ""),
+    referrer_url: String(input.referrer_url || "").trim().slice(0, 500) || null,
+    request_path: String(input.request_path || "").trim().slice(0, 255) || null,
+    user_agent: String(input.user_agent || "").trim().slice(0, 255) || null,
     created_at: new Date().toISOString()
   };
 
@@ -1265,12 +1605,239 @@ function createLead(input) {
     name: String(input.name || "").trim(),
     email: normalizeEmail(input.email),
     message: String(input.message || "").trim(),
+    visitor_key: String(input.visitor_key || "").trim() || null,
+    referrer_host: normalizeReferrerHost(input.referrer_host || ""),
     created_at: new Date().toISOString()
   };
 
   store.leads.push(lead);
   writeStore(store);
   return lead;
+}
+
+function startOfDay(value = new Date()) {
+  const date = value instanceof Date ? new Date(value.getTime()) : parseDateValue(value) || new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function addCalendarDays(value, days) {
+  const date = value instanceof Date ? new Date(value.getTime()) : parseDateValue(value) || new Date();
+  date.setDate(date.getDate() + Number(days || 0));
+  return date;
+}
+
+function formatPercent(part, whole) {
+  if (!whole) {
+    return 0;
+  }
+
+  return Number(((part / whole) * 100).toFixed(1));
+}
+
+function formatDayLabel(value) {
+  const parsed = parseDateValue(value);
+  if (!parsed) {
+    return "";
+  }
+
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric"
+  });
+}
+
+function humanizeEventType(type) {
+  switch (type) {
+    case "page_view":
+      return "Page view";
+    case "link_click":
+      return "Link click";
+    case "lead_submission":
+      return "Lead submission";
+    default:
+      return "Activity";
+  }
+}
+
+function humanizeReferrerHost(host) {
+  const normalized = normalizeReferrerHost(host);
+  if (!normalized) {
+    return "Direct";
+  }
+
+  if ([CANONICAL_PUBLIC_HOST, "myurlc.com"].includes(normalized)) {
+    return SITE_NAME;
+  }
+
+  return normalized.replace(/^www\./, "");
+}
+
+function buildAnalyticsSummary(events, leads) {
+  const pageViews = events.filter((event) => event.event_type === "page_view");
+  const linkClicks = events.filter((event) => event.event_type === "link_click");
+  const uniqueVisitors = new Set(events.map((event) => event.visitor_key).filter(Boolean));
+
+  return {
+    page_views: pageViews.length,
+    unique_visitors: uniqueVisitors.size,
+    link_clicks: linkClicks.length,
+    leads: leads.length,
+    ctr_percent: formatPercent(linkClicks.length, pageViews.length),
+    lead_rate_percent: formatPercent(leads.length, pageViews.length)
+  };
+}
+
+function buildAnalyticsTrend(events, leads, days = 7) {
+  const totalDays = Math.max(1, Number(days) || 7);
+  const firstDay = addCalendarDays(startOfDay(new Date()), -(totalDays - 1));
+  const rows = Array.from({ length: totalDays }, (_, index) => {
+    const day = addCalendarDays(firstDay, index);
+    const dayStart = startOfDay(day);
+    const dayEnd = addCalendarDays(dayStart, 1);
+
+    const eventBucket = events.filter((event) => {
+      const createdAt = parseDateValue(event.created_at);
+      return createdAt && createdAt >= dayStart && createdAt < dayEnd;
+    });
+
+    const leadBucket = leads.filter((lead) => {
+      const createdAt = parseDateValue(lead.created_at);
+      return createdAt && createdAt >= dayStart && createdAt < dayEnd;
+    });
+
+    return {
+      key: dayStart.toISOString(),
+      label: formatDayLabel(dayStart),
+      page_views: eventBucket.filter((event) => event.event_type === "page_view").length,
+      link_clicks: eventBucket.filter((event) => event.event_type === "link_click").length,
+      leads: leadBucket.length
+    };
+  });
+
+  const maxValue = Math.max(
+    1,
+    ...rows.map((row) => Math.max(row.page_views, row.link_clicks, row.leads))
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    page_views_width: row.page_views > 0 ? Math.max(8, Math.round((row.page_views / maxValue) * 100)) : 0,
+    link_clicks_width: row.link_clicks > 0 ? Math.max(8, Math.round((row.link_clicks / maxValue) * 100)) : 0,
+    leads_width: row.leads > 0 ? Math.max(8, Math.round((row.leads / maxValue) * 100)) : 0
+  }));
+}
+
+function buildOrderAnalyticsReport(order) {
+  const events = listAnalyticsEvents().filter((event) => String(event.order_id || "") === String(order.id));
+  const leads = listLeads().filter((lead) => String(lead.order_id || "") === String(order.id));
+  const now = new Date();
+  const last7Start = addCalendarDays(startOfDay(now), -6);
+  const last30Start = addCalendarDays(startOfDay(now), -29);
+  const events7 = events.filter((event) => {
+    const createdAt = parseDateValue(event.created_at);
+    return createdAt && createdAt >= last7Start;
+  });
+  const events30 = events.filter((event) => {
+    const createdAt = parseDateValue(event.created_at);
+    return createdAt && createdAt >= last30Start;
+  });
+  const leads7 = leads.filter((lead) => {
+    const createdAt = parseDateValue(lead.created_at);
+    return createdAt && createdAt >= last7Start;
+  });
+  const leads30 = leads.filter((lead) => {
+    const createdAt = parseDateValue(lead.created_at);
+    return createdAt && createdAt >= last30Start;
+  });
+  const clickCounts = new Map();
+
+  events
+    .filter((event) => event.event_type === "link_click")
+    .forEach((event) => {
+      const key = `${event.link_label || ""}||${event.link_url || ""}`;
+      const existing = clickCounts.get(key) || {
+        label: event.link_label || "Untitled Link",
+        url: event.link_url || "",
+        clicks: 0,
+        last_clicked_at: null
+      };
+      existing.clicks += 1;
+      existing.last_clicked_at = existing.last_clicked_at && parseDateValue(existing.last_clicked_at) > parseDateValue(event.created_at)
+        ? existing.last_clicked_at
+        : event.created_at;
+      clickCounts.set(key, existing);
+    });
+
+  const topLinks = (order.links || [])
+    .map((link) => {
+      const key = `${link.label || ""}||${link.url || ""}`;
+      const stats = clickCounts.get(key) || { clicks: 0, last_clicked_at: null };
+      return {
+        label: link.label,
+        url: link.url,
+        clicks: stats.clicks,
+        last_clicked_at: stats.last_clicked_at,
+        formatted_last_clicked_at: formatDateTime(stats.last_clicked_at),
+        relative_last_clicked_at: stats.last_clicked_at ? formatRelativeTime(stats.last_clicked_at) : ""
+      };
+    })
+    .sort((left, right) => right.clicks - left.clicks || left.label.localeCompare(right.label))
+    .slice(0, 8);
+
+  const topReferrers = Array.from(
+    events30
+      .reduce((map, event) => {
+        const host = normalizeReferrerHost(event.referrer_host || "");
+        const key = !host || [CANONICAL_PUBLIC_HOST, "myurlc.com"].includes(host) ? "direct" : host;
+        const bucket = map.get(key) || { host: key, visits: 0 };
+        bucket.visits += 1;
+        map.set(key, bucket);
+        return map;
+      }, new Map())
+      .values()
+  )
+    .sort((left, right) => right.visits - left.visits)
+    .slice(0, 6)
+    .map((item) => ({
+      ...item,
+      label: item.host === "direct" ? "Direct" : humanizeReferrerHost(item.host)
+    }));
+
+  const recentActivity = events
+    .slice(0, 12)
+    .map((event) => ({
+      ...event,
+      event_label: humanizeEventType(event.event_type),
+      detail: event.event_type === "link_click"
+        ? (event.link_label || "Clicked a link")
+        : (event.event_type === "page_view"
+          ? humanizeReferrerHost(event.referrer_host)
+          : "New lead captured"),
+      formatted_created_at: formatDateTime(event.created_at),
+      relative_created_at: formatRelativeTime(event.created_at)
+    }));
+
+  const recentLeads = leads
+    .slice(0, 10)
+    .map((lead) => ({
+      ...lead,
+      formatted_created_at: formatDateTime(lead.created_at),
+      relative_created_at: formatRelativeTime(lead.created_at),
+      source_label: humanizeReferrerHost(lead.referrer_host)
+    }));
+
+  return {
+    has_data: events.length > 0 || leads.length > 0,
+    summary_all_time: buildAnalyticsSummary(events, leads),
+    summary_7d: buildAnalyticsSummary(events7, leads7),
+    summary_30d: buildAnalyticsSummary(events30, leads30),
+    daily_series: buildAnalyticsTrend(events30, leads30, 7),
+    top_links: topLinks,
+    top_referrers: topReferrers,
+    recent_activity: recentActivity,
+    recent_leads: recentLeads
+  };
 }
 
 function getSupportTickets() {
@@ -1437,8 +2004,146 @@ function getOrderByOwnerUserId(userId) {
   return getOrders().find((order) => String(order.owner_user_id || "") === String(userId)) || null;
 }
 
+function getPageRevisions() {
+  return readStore().page_revisions;
+}
+
+function getPageRevisionById(orderId, revisionId) {
+  return getPageRevisions().find((revision) => {
+    return String(revision.order_id || "") === String(orderId) && String(revision.id || "") === String(revisionId);
+  }) || null;
+}
+
+function sanitizeOrderSnapshot(order) {
+  if (!order) {
+    return null;
+  }
+
+  return {
+    id: order.id,
+    owner_user_id: order.owner_user_id || null,
+    source: order.source || "manual",
+    email: order.email || "",
+    full_name: order.full_name || "",
+    business_name: order.business_name || "",
+    slug: normalizeUsername(order.slug),
+    bio: order.bio || "",
+    phone: order.phone || "",
+    lead_form_enabled: order.lead_form_enabled ? 1 : 0,
+    lead_form_prompt: sanitizeLeadPrompt(order.lead_form_prompt),
+    profile_image: order.profile_image || null,
+    profile_media: order.profile_media || order.profile_image || null,
+    profile_media_type: normalizeMediaType(order.profile_media_type) || ((order.profile_media || order.profile_image) ? "image" : null),
+    background_image: order.background_image || null,
+    theme: normalizeTheme(order.theme),
+    accent_color: sanitizeAccentColor(order.accent_color),
+    links_json: order.links_json || "[]",
+    status: order.status || "draft",
+    payment_status: order.payment_status || "manual",
+    stripe_session_id: order.stripe_session_id || null,
+    is_published: order.is_published ? 1 : 0,
+    created_at: order.created_at || new Date().toISOString(),
+    updated_at: order.updated_at || new Date().toISOString()
+  };
+}
+
+function createPageRevision(order, options = {}) {
+  const snapshot = sanitizeOrderSnapshot(order);
+  if (!snapshot?.id) {
+    return null;
+  }
+
+  const store = readStore();
+  const revision = {
+    id: nextId(store.page_revisions),
+    order_id: snapshot.id,
+    actor_type: String(options.actorType || "system").trim() || "system",
+    actor_user_id: options.actorUserId || null,
+    actor_label: String(options.actorLabel || "").trim().slice(0, 80) || null,
+    reason: String(options.reason || "Automatic page backup").trim().slice(0, 140) || "Automatic page backup",
+    snapshot,
+    created_at: new Date().toISOString()
+  };
+
+  store.page_revisions.push(revision);
+
+  const revisionIndexes = store.page_revisions
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => String(item.order_id || "") === String(snapshot.id))
+    .sort((left, right) => new Date(left.item.created_at || 0).getTime() - new Date(right.item.created_at || 0).getTime());
+
+  while (revisionIndexes.length > PAGE_REVISION_LIMIT) {
+    const oldest = revisionIndexes.shift();
+    if (!oldest) {
+      break;
+    }
+    store.page_revisions.splice(oldest.index, 1);
+    for (let index = 0; index < revisionIndexes.length; index += 1) {
+      if (revisionIndexes[index].index > oldest.index) {
+        revisionIndexes[index].index -= 1;
+      }
+    }
+  }
+
+  writeStore(store);
+  return revision;
+}
+
+function listPageRevisionsForOrder(orderId) {
+  return getPageRevisions()
+    .filter((revision) => String(revision.order_id || "") === String(orderId))
+    .sort((left, right) => {
+      return new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime();
+    })
+    .map((revision) => {
+      const snapshot = sanitizeOrderSnapshot(revision.snapshot);
+      const actorLabel = revision.actor_label
+        || (revision.actor_type === "customer"
+          ? "Customer"
+          : (revision.actor_type === "admin" ? "Admin" : "System"));
+
+      return {
+        ...revision,
+        snapshot,
+        actor_label: actorLabel,
+        formatted_created_at: formatDateTime(revision.created_at),
+        relative_created_at: formatRelativeTime(revision.created_at),
+        snapshot_status: snapshot?.is_published ? "Published" : "Draft",
+        snapshot_slug: snapshot?.slug || ""
+      };
+    });
+}
+
+function buildRevisionRestorePayload(revision) {
+  const snapshot = sanitizeOrderSnapshot(revision?.snapshot);
+  if (!snapshot) {
+    return null;
+  }
+
+  return {
+    email: snapshot.email,
+    full_name: snapshot.full_name,
+    business_name: snapshot.business_name,
+    slug: snapshot.slug,
+    bio: snapshot.bio,
+    phone: snapshot.phone,
+    lead_form_enabled: snapshot.lead_form_enabled ? 1 : 0,
+    lead_form_prompt: snapshot.lead_form_prompt,
+    profile_media: snapshot.profile_media,
+    profile_media_type: snapshot.profile_media_type,
+    profile_image: snapshot.profile_image,
+    background_image: snapshot.background_image,
+    theme: snapshot.theme,
+    accent_color: snapshot.accent_color,
+    links_json: snapshot.links_json,
+    status: snapshot.status,
+    is_published: snapshot.is_published ? 1 : 0
+  };
+}
+
 function createOrder(input) {
   const store = readStore();
+  const timestamp = new Date().toISOString();
   const order = {
     id: nextId(store.orders),
     owner_user_id: input.owner_user_id || null,
@@ -1462,15 +2167,22 @@ function createOrder(input) {
     payment_status: input.payment_status || "manual",
     stripe_session_id: input.stripe_session_id || null,
     is_published: input.is_published ? 1 : 0,
-    created_at: new Date().toISOString()
+    created_at: timestamp,
+    updated_at: timestamp
   };
 
   store.orders.push(order);
   writeStore(store);
+  createPageRevision(order, {
+    actorType: input.owner_user_id ? "customer" : "system",
+    actorUserId: input.owner_user_id || null,
+    actorLabel: input.owner_user_id ? "Customer" : "System",
+    reason: "Initial page created"
+  });
   return order;
 }
 
-function updateOrder(id, updates) {
+function updateOrder(id, updates, options = {}) {
   const store = readStore();
   const index = store.orders.findIndex((order) => String(order.id) === String(id));
 
@@ -1492,11 +2204,22 @@ function updateOrder(id, updates) {
     profile_image: nextProfileMediaType === "image" ? nextProfileMedia : null,
     background_image: updates.background_image ?? existingOrder.background_image ?? null,
     theme: normalizeTheme(updates.theme ?? existingOrder.theme),
-    accent_color: sanitizeAccentColor(updates.accent_color ?? existingOrder.accent_color)
+    accent_color: sanitizeAccentColor(updates.accent_color ?? existingOrder.accent_color),
+    updated_at: new Date().toISOString()
   };
 
   store.orders[index] = nextOrder;
   writeStore(store);
+
+  if (options.revisionReason) {
+    createPageRevision(existingOrder, {
+      actorType: options.revisionActorType || "system",
+      actorUserId: options.revisionActorUserId || null,
+      actorLabel: options.revisionActorLabel || "",
+      reason: options.revisionReason
+    });
+  }
+
   return nextOrder;
 }
 
@@ -1544,7 +2267,9 @@ function toOrderViewModel(row) {
     profile_image: profileMediaType === "image" ? profileMedia : row.profile_image || null,
     background_image: row.background_image || null,
     is_published: row.is_published ? 1 : 0,
-    public_url: `${BASE_URL}/p/${row.slug}`,
+    public_path: buildPublicPagePath(row.slug),
+    lead_form_action_path: buildPublicLeadPath(row.slug),
+    public_url: absoluteUrl(buildPublicPagePath(row.slug)),
     owner_referral_share_url: ownerReferralCode ? `${BASE_URL}/ref/${encodeURIComponent(ownerReferralCode)}` : ""
   };
 }
@@ -1771,7 +2496,8 @@ function renderAuthPage(res, view, options = {}) {
     error: options.error || null,
     info: options.info || null,
     values: options.values || {},
-    founderOffer: getFoundingOfferStats()
+    founderOffer: getFoundingOfferStats(),
+    ...buildSeoData(options.seo)
   });
 }
 
@@ -1783,7 +2509,12 @@ function renderIntake(res, options = {}) {
     error: options.error || null,
     paid: Boolean(options.paid),
     sessionId: options.sessionId || "",
-    values
+    values,
+    ...buildSeoData({
+      canonicalUrl: absoluteUrl("/intake"),
+      metaRobots: "noindex,nofollow",
+      metaDescription: "Internal intake form for myurlc.com page setup."
+    })
   });
 }
 
@@ -1791,6 +2522,7 @@ function renderAdminOrder(res, row, options = {}) {
   const order = buildAdminOrderValues(row, options.values);
   const ownerUser = row && row.owner_user_id ? toCustomerViewModel(getUserById(row.owner_user_id)) : null;
   const statusCode = options.statusCode || 200;
+  const pageRevisions = options.pageRevisions || listPageRevisionsForOrder(order.id).slice(0, 8);
 
   return res.status(statusCode).render("admin-order", {
     pageTitle: `${order.business_name || "Order"} Details`,
@@ -1800,8 +2532,14 @@ function renderAdminOrder(res, row, options = {}) {
     ownerUser,
     analyticsSummary: options.analyticsSummary || { total: 0, clicks: 0 },
     recentLeads: options.recentLeads || [],
+    pageRevisions,
     statusOptions: STATUS_OPTIONS,
-    paymentStatusOptions: PAYMENT_STATUS_OPTIONS
+    paymentStatusOptions: PAYMENT_STATUS_OPTIONS,
+    ...buildSeoData({
+      canonicalUrl: absoluteUrl(`/admin/order/${order.id}`),
+      metaRobots: "noindex,nofollow",
+      metaDescription: "Internal admin order details."
+    })
   });
 }
 
@@ -1815,6 +2553,7 @@ function renderStudio(res, user, row, options = {}) {
     is_published: options.is_published
   });
   const statusCode = options.statusCode || 200;
+  const analyticsSnapshot = options.analyticsSnapshot || buildAnalyticsSnapshot(order);
 
   return res.status(statusCode).render("studio", {
     pageTitle: "Page Studio",
@@ -1823,13 +2562,20 @@ function renderStudio(res, user, row, options = {}) {
     user,
     order,
     values,
-    preview
+    preview,
+    analyticsSnapshot,
+    ...buildSeoData({
+      canonicalUrl: absoluteUrl("/studio"),
+      metaRobots: "noindex,nofollow",
+      metaDescription: "Create and update your myurlc.com link in bio page."
+    })
   });
 }
 
 function renderBilling(res, user, row, options = {}) {
   const order = toOrderViewModel(row);
   const statusCode = options.statusCode || 200;
+  const analyticsSnapshot = options.analyticsSnapshot || buildAnalyticsSnapshot(order);
 
   return res.status(statusCode).render("billing", {
     pageTitle: "Billing",
@@ -1837,8 +2583,14 @@ function renderBilling(res, user, row, options = {}) {
     info: options.info || null,
     user,
     order,
+    analyticsSnapshot,
     billingConfigured: Boolean(stripe && BILLING_PRICE_ID),
-    trialExpired: user.trial_expired
+    trialExpired: user.trial_expired,
+    ...buildSeoData({
+      canonicalUrl: absoluteUrl("/billing"),
+      metaRobots: "noindex,nofollow",
+      metaDescription: "Manage billing, founder access, and referral rewards on myurlc.com."
+    })
   });
 }
 
@@ -1862,12 +2614,118 @@ function renderSupportPage(res, options = {}) {
     error: options.error || null,
     info: options.info || null,
     values: options.values || buildSupportValues({}, options.customer || null),
-    currentCustomer: options.customer || null
+    currentCustomer: options.customer || null,
+    ...buildSeoData({
+      canonicalUrl: absoluteUrl("/support"),
+      metaRobots: "noindex,follow",
+      metaDescription: "Get help or report a bug for your myurlc.com page."
+    })
   });
+}
+
+function buildAnalyticsSnapshot(order) {
+  if (!order) {
+    return {
+      has_data: false,
+      summary_30d: {
+        page_views: 0,
+        unique_visitors: 0,
+        link_clicks: 0,
+        leads: 0
+      },
+      top_link: null
+    };
+  }
+
+  const report = buildOrderAnalyticsReport(order);
+  return {
+    has_data: report.has_data,
+    summary_30d: report.summary_30d,
+    top_link: report.top_links.find((link) => link.clicks > 0) || report.top_links[0] || null
+  };
+}
+
+function renderAnalytics(res, user, row, report, options = {}) {
+  const order = toOrderViewModel(row);
+  const statusCode = options.statusCode || 200;
+
+  return res.status(statusCode).render("analytics", {
+    pageTitle: "Analytics",
+    error: options.error || null,
+    info: options.info || null,
+    user,
+    order,
+    report,
+    ...buildSeoData({
+      canonicalUrl: absoluteUrl("/analytics"),
+      metaRobots: "noindex,nofollow",
+      metaDescription: "View analytics and reports for your myurlc.com page."
+    })
+  });
+}
+
+function buildCustomerExportPayload(user, order) {
+  const report = buildOrderAnalyticsReport(order);
+  const leads = listLeads()
+    .filter((lead) => String(lead.order_id || "") === String(order.id))
+    .map((lead) => ({
+      id: lead.id,
+      name: lead.name,
+      email: lead.email,
+      message: lead.message,
+      created_at: lead.created_at
+    }));
+
+  return {
+    exported_at: new Date().toISOString(),
+    site_name: SITE_NAME,
+    export_type: "page_backup",
+    version: 1,
+    user: {
+      id: user.id,
+      name: user.name,
+      business_name: user.business_name,
+      email: user.email,
+      referral_code: user.referral_code
+    },
+    page: {
+      id: order.id,
+      slug: order.slug,
+      public_url: order.public_url,
+      full_name: order.full_name,
+      business_name: order.business_name,
+      bio: order.bio,
+      phone: order.phone,
+      theme: order.theme,
+      accent_color: order.accent_color,
+      lead_form_enabled: Boolean(order.lead_form_enabled),
+      lead_form_prompt: order.lead_form_prompt,
+      profile_media: order.profile_media,
+      profile_media_type: order.profile_media_type,
+      background_image: order.background_image,
+      links: order.links.map((link) => ({
+        label: link.label,
+        url: link.url,
+        section: link.section,
+        platform: link.platform
+      })),
+      is_published: Boolean(order.is_published),
+      status: order.status,
+      created_at: order.created_at,
+      updated_at: order.updated_at
+    },
+    analytics_summary: report.summary_all_time,
+    leads
+  };
 }
 
 app.use((req, res, next) => {
   res.locals.baseUrl = BASE_URL;
+  res.locals.siteName = SITE_NAME;
+  res.locals.currentPath = req.path;
+  res.locals.databaseConfigured = Boolean(dbPool);
+  res.locals.databaseReady = databaseReady;
+  res.locals.storeLoadedFrom = storeLoadedFrom;
   res.locals.offerPriceDisplay = OFFER_PRICE_DISPLAY;
   res.locals.trialDays = TRIAL_DAYS;
   res.locals.planName = PLAN_NAME;
@@ -1884,6 +2742,9 @@ app.use((req, res, next) => {
   res.locals.maxLinks = MAX_LINKS;
   res.locals.currentCustomer = getCurrentCustomer(req);
   res.locals.founderOffer = getFoundingOfferStats();
+  Object.assign(res.locals, buildSeoData({
+    canonicalUrl: absoluteUrl(req.path || "/")
+  }));
   next();
 });
 
@@ -1905,11 +2766,55 @@ app.get("/", (req, res) => {
     });
 
   res.render("home", {
-    pageTitle: "Custom Link Pages",
+    pageTitle: "Free Link in Bio Pages for Creators",
     published,
     recentSignups,
-    founderOffer: getFoundingOfferStats()
+    founderOffer: getFoundingOfferStats(),
+    ...buildSeoData({
+      canonicalUrl: absoluteUrl("/"),
+      metaDescription: "Launch a free link in bio page for your creator brand, business, or personal profile. myurlc.com helps you share links, collect leads, and grow through organic search.",
+      structuredData: buildHomeStructuredData()
+    })
   });
+});
+
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain").send([
+    "User-agent: *",
+    "Allow: /",
+    "Disallow: /admin",
+    "Disallow: /admin/",
+    "Disallow: /billing",
+    "Disallow: /health",
+    "Disallow: /intake",
+    "Disallow: /login",
+    "Disallow: /logout",
+    "Disallow: /ref/",
+    "Disallow: /studio",
+    "Disallow: /support",
+    "Disallow: /thank-you",
+    "",
+    `Sitemap: ${absoluteUrl("/sitemap.xml")}`
+  ].join("\n"));
+});
+
+app.get("/sitemap.xml", (req, res) => {
+  const entries = buildSitemapEntries();
+  const xml = [
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+    "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
+    ...entries.map((entry) => [
+      "  <url>",
+      `    <loc>${escapeXml(entry.loc)}</loc>`,
+      `    <lastmod>${escapeXml(entry.lastmod)}</lastmod>`,
+      `    <changefreq>${escapeXml(entry.changefreq)}</changefreq>`,
+      `    <priority>${escapeXml(entry.priority)}</priority>`,
+      "  </url>"
+    ].join("\n")),
+    "</urlset>"
+  ].join("\n");
+
+  res.type("application/xml").send(xml);
 });
 
 app.get("/support", (req, res) => {
@@ -1960,16 +2865,21 @@ app.get("/signup", requireGuest, (req, res) => {
   const referrer = getUserByReferralCode(referralCode);
 
   renderAuthPage(res, "signup", {
-    pageTitle: "Create Your Account",
+    pageTitle: "Start Your Free Link in Bio Page",
     values: {
       referral_code: referrer ? referrer.referral_code : referralCode
     },
-    info: referrer ? `Referred by ${referrer.business_name || referrer.name}.` : null
+    info: referrer ? `Referred by ${referrer.business_name || referrer.name}.` : null,
+    seo: {
+      canonicalUrl: absoluteUrl("/signup"),
+      metaDescription: "Create your free myurlc.com link in bio page. The first 500 users get lifetime access, and everyone else starts with a free trial."
+    }
   });
 });
 
 app.get("/ref/:code", (req, res) => {
   const referralCode = sanitizeReferralCode(req.params.code);
+  res.set("X-Robots-Tag", "noindex, nofollow");
   return res.redirect(`/signup${referralCode ? `?ref=${encodeURIComponent(referralCode)}` : ""}`);
 });
 
@@ -1983,45 +2893,65 @@ app.post("/signup", requireGuest, (req, res) => {
   if (!values.full_name || !values.business_name || !values.email || !values.password) {
     return renderAuthPage(res, "signup", {
       statusCode: 400,
-      pageTitle: "Create Your Account",
+      pageTitle: "Start Your Free Link in Bio Page",
       error: "Name, business name, email, and password are required.",
-      values
+      values,
+      seo: {
+        canonicalUrl: absoluteUrl("/signup"),
+        metaDescription: "Create your free myurlc.com link in bio page."
+      }
     });
   }
 
   if (values.password.length < 8) {
     return renderAuthPage(res, "signup", {
       statusCode: 400,
-      pageTitle: "Create Your Account",
+      pageTitle: "Start Your Free Link in Bio Page",
       error: "Use at least 8 characters for the password.",
-      values
+      values,
+      seo: {
+        canonicalUrl: absoluteUrl("/signup"),
+        metaDescription: "Create your free myurlc.com link in bio page."
+      }
     });
   }
 
   if (getUserByEmail(values.email)) {
     return renderAuthPage(res, "signup", {
       statusCode: 400,
-      pageTitle: "Create Your Account",
+      pageTitle: "Start Your Free Link in Bio Page",
       error: "That email already has an account. Try logging in instead.",
-      values
+      values,
+      seo: {
+        canonicalUrl: absoluteUrl("/signup"),
+        metaDescription: "Create your free myurlc.com link in bio page."
+      }
     });
   }
 
   if (values.referral_code && !referrer) {
     return renderAuthPage(res, "signup", {
       statusCode: 400,
-      pageTitle: "Create Your Account",
+      pageTitle: "Start Your Free Link in Bio Page",
       error: "That referral code was not found.",
-      values
+      values,
+      seo: {
+        canonicalUrl: absoluteUrl("/signup"),
+        metaDescription: "Create your free myurlc.com link in bio page."
+      }
     });
   }
 
   if (referrer && normalizeEmail(referrer.email) === values.email) {
     return renderAuthPage(res, "signup", {
       statusCode: 400,
-      pageTitle: "Create Your Account",
+      pageTitle: "Start Your Free Link in Bio Page",
       error: "You cannot use your own referral code for this account.",
-      values
+      values,
+      seo: {
+        canonicalUrl: absoluteUrl("/signup"),
+        metaDescription: "Create your free myurlc.com link in bio page."
+      }
     });
   }
 
@@ -2045,7 +2975,12 @@ app.post("/signup", requireGuest, (req, res) => {
 app.get("/login", requireGuest, (req, res) => {
   renderAuthPage(res, "login", {
     pageTitle: "Log In",
-    values: {}
+    values: {},
+    seo: {
+      canonicalUrl: absoluteUrl("/login"),
+      metaDescription: "Log in to manage your myurlc.com link in bio page.",
+      metaRobots: "noindex,nofollow"
+    }
   });
 });
 
@@ -2061,7 +2996,12 @@ app.post("/login", requireGuest, (req, res) => {
       statusCode: 401,
       pageTitle: "Log In",
       error: "Incorrect email or password.",
-      values: { email: values.email }
+      values: { email: values.email },
+      seo: {
+        canonicalUrl: absoluteUrl("/login"),
+        metaDescription: "Log in to manage your myurlc.com link in bio page.",
+        metaRobots: "noindex,nofollow"
+      }
     });
   }
 
@@ -2137,6 +3077,24 @@ app.get("/billing/success", requireCustomer, async (req, res) => {
   });
 
   return res.redirect("/billing?success=1");
+});
+
+app.get("/analytics", requireCustomer, (req, res) => {
+  const order = ensureCustomerPage(req.currentCustomer);
+  const report = buildOrderAnalyticsReport(toOrderViewModel(order));
+
+  renderAnalytics(res, req.currentCustomer, order, report, {
+    info: !order.is_published ? "Publish your page to start collecting live traffic data." : null
+  });
+});
+
+app.get("/studio/export", requireCustomer, (req, res) => {
+  const order = toOrderViewModel(ensureCustomerPage(req.currentCustomer));
+  const payload = buildCustomerExportPayload(req.currentCustomer, order);
+  const filename = `${order.slug || "myurlc-page"}-backup.json`;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  return res.status(200).send(JSON.stringify(payload, null, 2));
 });
 
 app.get("/studio", requireCustomer, (req, res) => {
@@ -2238,6 +3196,13 @@ app.post("/studio", requireCustomer, assetUpload, (req, res) => {
     links_json: JSON.stringify(validLinks),
     status,
     is_published: isPublished
+  }, {
+    revisionReason: intent === "publish"
+      ? (order.is_published ? "Before customer live update" : "Before first customer publish")
+      : (intent === "unpublish" ? "Before customer unpublish" : "Before customer draft save"),
+    revisionActorType: "customer",
+    revisionActorUserId: customer.id,
+    revisionActorLabel: "Customer"
   });
 
   return res.redirect("/studio?saved=1");
@@ -2246,7 +3211,11 @@ app.post("/studio", requireCustomer, assetUpload, (req, res) => {
 app.get("/buy", (req, res) => {
   res.render("buy", {
     pageTitle: "Buy Your Page",
-    stripeEnabled: Boolean(stripe && STRIPE_PRICE_ID)
+    stripeEnabled: Boolean(stripe && STRIPE_PRICE_ID),
+    ...buildSeoData({
+      canonicalUrl: absoluteUrl("/buy"),
+      metaDescription: "Order a done-for-you link in bio page from myurlc.com for your business, creator profile, or personal brand."
+    })
   });
 });
 
@@ -2367,14 +3336,24 @@ app.post("/intake", assetUpload, async (req, res) => {
 
 app.get("/thank-you", (req, res) => {
   res.render("thank-you", {
-    pageTitle: "Thank You"
+    pageTitle: "Thank You",
+    ...buildSeoData({
+      canonicalUrl: absoluteUrl("/thank-you"),
+      metaRobots: "noindex,nofollow",
+      metaDescription: "Thank you for submitting your page details."
+    })
   });
 });
 
 app.get("/admin/login", (req, res) => {
   res.render("admin-login", {
     pageTitle: "Admin Login",
-    error: null
+    error: null,
+    ...buildSeoData({
+      canonicalUrl: absoluteUrl("/admin/login"),
+      metaRobots: "noindex,nofollow",
+      metaDescription: "Internal admin login."
+    })
   });
 });
 
@@ -2387,7 +3366,12 @@ app.post("/admin/login", (req, res) => {
 
   return res.status(401).render("admin-login", {
     pageTitle: "Admin Login",
-    error: "Wrong password."
+    error: "Wrong password.",
+    ...buildSeoData({
+      canonicalUrl: absoluteUrl("/admin/login"),
+      metaRobots: "noindex,nofollow",
+      metaDescription: "Internal admin login."
+    })
   });
 });
 
@@ -2423,7 +3407,12 @@ app.get("/admin", requireAdmin, (req, res) => {
     pageTitle: "Admin Dashboard",
     orders,
     stats,
-    recentSupportTickets: supportTickets.slice(0, 8)
+    recentSupportTickets: supportTickets.slice(0, 8),
+    ...buildSeoData({
+      canonicalUrl: absoluteUrl("/admin"),
+      metaRobots: "noindex,nofollow",
+      metaDescription: "Internal admin dashboard."
+    })
   });
 });
 
@@ -2462,7 +3451,9 @@ app.get("/admin/order/:id", requireAdmin, (req, res) => {
     }));
 
   return renderAdminOrder(res, order, {
-    info: req.query.saved ? "Order details saved." : null,
+    info: req.query.restored
+      ? "Previous page version restored."
+      : (req.query.saved ? "Order details saved." : null),
     analyticsSummary,
     recentLeads
   });
@@ -2536,9 +3527,38 @@ app.post("/admin/order/:id/update", requireAdmin, assetUpload, (req, res) => {
     status: values.status,
     payment_status: values.payment_status,
     is_published: values.status === "published" ? 1 : 0
+  }, {
+    revisionReason: "Before admin page edit",
+    revisionActorType: "admin",
+    revisionActorLabel: "Admin"
   });
 
   return res.redirect(`/admin/order/${order.id}?saved=1`);
+});
+
+app.post("/admin/order/:id/revisions/:revisionId/restore", requireAdmin, (req, res) => {
+  const order = getOrderById(req.params.id);
+  if (!order) {
+    return res.status(404).send("Order not found");
+  }
+
+  const revision = getPageRevisionById(req.params.id, req.params.revisionId);
+  if (!revision) {
+    return res.status(404).send("Revision not found");
+  }
+
+  const restorePayload = buildRevisionRestorePayload(revision);
+  if (!restorePayload) {
+    return res.status(400).send("Revision payload is not valid");
+  }
+
+  updateOrder(order.id, restorePayload, {
+    revisionReason: `Before restoring revision #${revision.id}`,
+    revisionActorType: "admin",
+    revisionActorLabel: "Admin"
+  });
+
+  return res.redirect(`/admin/order/${order.id}?restored=1`);
 });
 
 app.post("/admin/customer/:userId/activate", requireAdmin, (req, res) => {
@@ -2557,29 +3577,82 @@ app.post("/admin/customer/:userId/deactivate", requireAdmin, (req, res) => {
 });
 
 app.post("/admin/order/:id/publish", requireAdmin, (req, res) => {
-  updateOrder(req.params.id, { is_published: 1, status: "published" });
+  updateOrder(req.params.id, { is_published: 1, status: "published" }, {
+    revisionReason: "Before admin publish",
+    revisionActorType: "admin",
+    revisionActorLabel: "Admin"
+  });
   res.redirect(`/admin/order/${req.params.id}?saved=1`);
 });
 
 app.post("/admin/order/:id/unpublish", requireAdmin, (req, res) => {
-  updateOrder(req.params.id, { is_published: 0, status: "draft" });
+  updateOrder(req.params.id, { is_published: 0, status: "draft" }, {
+    revisionReason: "Before admin unpublish",
+    revisionActorType: "admin",
+    revisionActorLabel: "Admin"
+  });
   res.redirect(`/admin/order/${req.params.id}?saved=1`);
 });
+
+function renderPublicPageNotFound(req, res) {
+  return res.status(404).render("not-found", {
+    pageTitle: "Page Not Found",
+    ...buildSeoData({
+      canonicalUrl: absoluteUrl(req.path),
+      metaRobots: "noindex,nofollow",
+      metaDescription: "The page you are looking for could not be found."
+    })
+  });
+}
+
+function getPublishedOrderBySlug(slug) {
+  const order = toOrderViewModel(getOrderBySlug(slug));
+  if (!order || !order.is_published) {
+    return null;
+  }
+  return order;
+}
+
+function renderPublishedProfile(req, res, order, options = {}) {
+  const shouldTrackView = options.trackView !== false;
+  const leadError = options.leadError || null;
+  const leadSuccess = options.leadSuccess || null;
+
+  if (shouldTrackView) {
+    createAnalyticsEvent({
+      order_id: order.id,
+      owner_user_id: order.owner_user_id || null,
+      event_type: "page_view",
+      ...buildRequestAnalyticsContext(req)
+    });
+  }
+
+  const profileDescription = sanitizeMetaText(order.bio || `${order.business_name || order.full_name || order.slug} on ${SITE_NAME}.`);
+  return res.status(options.statusCode || 200).render("profile", {
+    pageTitle: order.business_name,
+    order,
+    leadError,
+    leadSuccess,
+    ...buildSeoData({
+      canonicalUrl: order.public_url,
+      metaDescription: profileDescription,
+      ogType: "profile",
+      ogImage: order.profile_media && order.profile_media_type === "image" ? absoluteUrl(order.profile_media) : "",
+      structuredData: buildProfileStructuredData(order, profileDescription)
+    })
+  });
+}
 
 app.get("/r/:orderId/:linkIndex", (req, res) => {
   const order = toOrderViewModel(getOrderById(req.params.orderId));
   if (!order || !order.is_published) {
-    return res.status(404).render("not-found", {
-      pageTitle: "Page Not Found"
-    });
+    return renderPublicPageNotFound(req, res);
   }
 
   const linkIndex = Number(req.params.linkIndex);
   const link = Number.isInteger(linkIndex) ? order.links[linkIndex] : null;
   if (!link) {
-    return res.status(404).render("not-found", {
-      pageTitle: "Page Not Found"
-    });
+    return renderPublicPageNotFound(req, res);
   }
 
   createAnalyticsEvent({
@@ -2587,18 +3660,18 @@ app.get("/r/:orderId/:linkIndex", (req, res) => {
     owner_user_id: order.owner_user_id || null,
     event_type: "link_click",
     link_label: link.label,
-    link_url: link.url
+    link_url: link.url,
+    link_index: linkIndex,
+    ...buildRequestAnalyticsContext(req)
   });
 
   return res.redirect(link.url);
 });
 
-app.post("/p/:slug/lead", (req, res) => {
-  const order = toOrderViewModel(getOrderBySlug(req.params.slug));
-  if (!order || !order.is_published || !order.lead_form_enabled) {
-    return res.status(404).render("not-found", {
-      pageTitle: "Page Not Found"
-    });
+function handlePublicLeadSubmit(req, res) {
+  const order = getPublishedOrderBySlug(req.params.slug);
+  if (!order || !order.lead_form_enabled) {
+    return renderPublicPageNotFound(req, res);
   }
 
   const name = String(req.body.name || "").trim();
@@ -2606,11 +3679,10 @@ app.post("/p/:slug/lead", (req, res) => {
   const message = String(req.body.message || "").trim();
 
   if (!name || !email || !message) {
-    return res.status(400).render("profile", {
-      pageTitle: order.business_name,
-      order,
-      leadError: "Name, email, and message are required.",
-      leadSuccess: null
+    return renderPublishedProfile(req, res, order, {
+      statusCode: 400,
+      trackView: false,
+      leadError: "Name, email, and message are required."
     });
   }
 
@@ -2619,37 +3691,37 @@ app.post("/p/:slug/lead", (req, res) => {
     owner_user_id: order.owner_user_id || null,
     name,
     email,
-    message
+    message,
+    ...buildRequestAnalyticsContext(req)
   });
 
   createAnalyticsEvent({
     order_id: order.id,
     owner_user_id: order.owner_user_id || null,
-    event_type: "lead_submission"
+    event_type: "lead_submission",
+    ...buildRequestAnalyticsContext(req)
   });
 
-  return res.status(200).render("profile", {
-    pageTitle: order.business_name,
-    order,
-    leadError: null,
+  return renderPublishedProfile(req, res, order, {
+    trackView: false,
     leadSuccess: "Message sent. The page owner can now follow up with you."
   });
-});
+}
 
-app.get("/p/:slug", (req, res) => {
-  const order = toOrderViewModel(getOrderBySlug(req.params.slug));
-  if (!order || !order.is_published) {
-    return res.status(404).render("not-found", {
-      pageTitle: "Page Not Found"
-    });
+function handlePublicProfileRequest(req, res) {
+  const order = getPublishedOrderBySlug(req.params.slug);
+  if (!order) {
+    return renderPublicPageNotFound(req, res);
   }
 
-  return res.render("profile", {
-    pageTitle: order.business_name,
-    order,
-    leadError: null,
-    leadSuccess: null
-  });
+  return renderPublishedProfile(req, res, order);
+}
+
+app.post("/p/:slug/lead", handlePublicLeadSubmit);
+app.post("/:slug/lead", handlePublicLeadSubmit);
+app.get("/p/:slug", (req, res) => {
+  const path = buildPublicPagePath(req.params.slug);
+  return res.redirect(301, path);
 });
 
 app.get("/health", (req, res) => {
@@ -2657,12 +3729,21 @@ app.get("/health", (req, res) => {
     ok: true,
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
+    storage: {
+      uploads: "volume",
+      app_data: dbPool ? (databaseReady ? "postgres+volume-mirror" : "volume-json-fallback") : "volume-json",
+      database_configured: Boolean(dbPool),
+      database_ready: databaseReady,
+      store_loaded_from: storeLoadedFrom
+    },
     users: listUsers().length,
     pages: listOrders().length,
     leads: listLeads().length,
     events: listAnalyticsEvents().length
   });
 });
+
+app.get("/:slug", handlePublicProfileRequest);
 
 app.use((error, req, res, next) => {
   if (
@@ -2710,10 +3791,20 @@ app.use((error, req, res, next) => {
   return next(error);
 });
 
-if (require.main === module) {
+async function startServer() {
+  await storeReadyPromise;
   app.listen(PORT, () => {
-    console.log(`myurlc.com app running on port ${PORT}`);
+    const appDataMode = dbPool ? (databaseReady ? "postgres + volume mirror" : "volume JSON fallback") : "volume JSON";
+    console.log(`myurlc.com app running on port ${PORT} (${appDataMode}, source: ${storeLoadedFrom})`);
+  });
+}
+
+if (require.main === module) {
+  startServer().catch((error) => {
+    console.error("Failed to start myurlc.com:", error);
+    process.exit(1);
   });
 }
 
 module.exports = app;
+module.exports.storeReadyPromise = storeReadyPromise;

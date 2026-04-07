@@ -7,6 +7,8 @@
       <% if (user.can_access_studio) { %>
         <a class="btn btn-ghost" href="/studio">Back to studio</a>
       <% } %>
+      <a class="btn btn-ghost" href="/studio/export">Export JSON</a>
+      <a class="btn btn-ghost" href="/analytics">Analytics</a>
       <form method="POST" action="/logout">
         <button class="btn btn-secondary" type="submit">Log out</button>
       </form>
@@ -49,7 +51,7 @@
       <div class="pricing-card">
         <div>
           <p class="eyebrow">Plan</p>
-          <h2><%= user.has_lifetime_plan ? 'Founding 100 Lifetime' : planName %></h2>
+          <h2><%= user.has_lifetime_plan ? 'Founding 500 Lifetime' : planName %></h2>
           <p class="section-copy"><%= user.has_lifetime_plan ? 'Customization, publishing, and ongoing access are locked in for life.' : 'Customization, publishing, and ongoing account access.' %></p>
         </div>
         <div class="pricing-amount">
@@ -158,6 +160,34 @@
             <strong class="billing-url"><%= order.public_url %></strong>
           </div>
         <% } %>
+      </div>
+
+      <div class="card subtle-card analytics-snapshot-card analytics-snapshot-card-tight">
+        <div class="section-header compact-header">
+          <div>
+            <p class="eyebrow">Analytics snapshot</p>
+            <h3>Last 30 days</h3>
+          </div>
+          <a class="text-link" href="/analytics">Open reports</a>
+        </div>
+        <div class="grid two analytics-snapshot-grid analytics-snapshot-grid-compact">
+          <div class="analytics-mini-stat">
+            <span>Views</span>
+            <strong><%= analyticsSnapshot.summary_30d.page_views %></strong>
+          </div>
+          <div class="analytics-mini-stat">
+            <span>Clicks</span>
+            <strong><%= analyticsSnapshot.summary_30d.link_clicks %></strong>
+          </div>
+          <div class="analytics-mini-stat">
+            <span>Visitors</span>
+            <strong><%= analyticsSnapshot.summary_30d.unique_visitors %></strong>
+          </div>
+          <div class="analytics-mini-stat">
+            <span>Leads</span>
+            <strong><%= analyticsSnapshot.summary_30d.leads %></strong>
+          </div>
+        </div>
       </div>
     </aside>
   </main>
