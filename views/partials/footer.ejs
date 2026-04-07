@@ -1,4 +1,22 @@
+<a class="support-fab" data-support-launch href="/support" aria-label="Help or report bugs" title="Help or report bugs">
+  <span class="icon-svg"><%- iconSvg("help") %></span>
+  <span class="support-fab-label">Help</span>
+</a>
+
 <script>
+  if (document.querySelector(".profile-page-public .profile-mobile-dock")) {
+    document.body.classList.add("has-profile-mobile-dock");
+  }
+
+  if (document.querySelector(".studio-actions")) {
+    document.body.classList.add("has-studio-action-dock");
+  }
+
+  document.querySelectorAll("[data-support-launch]").forEach((link) => {
+    const currentPath = `${window.location.pathname}${window.location.search}`;
+    link.setAttribute("href", `/support?from=${encodeURIComponent(currentPath)}`);
+  });
+
   document.querySelectorAll("[data-link-builder]").forEach((builder) => {
     const revealButton = builder.querySelector("[data-reveal-links]");
     const rows = Array.from(builder.querySelectorAll("[data-link-row]"));

@@ -7,7 +7,7 @@
 <% const visibleName = order.business_name || order.full_name || order.slug; %>
 <% const showVisibleName = visibleName && visibleName.toLowerCase() !== order.slug.toLowerCase(); %>
 
-<div class="profile-page profile-theme-<%= order.theme %>" style="--accent:<%= order.accent_color %>;">
+<div class="profile-page profile-page-public profile-theme-<%= order.theme %>" style="--accent:<%= order.accent_color %>;">
   <% if (order.background_image) { %>
     <div class="profile-backdrop" style="background-image:url('<%= order.background_image %>');"></div>
   <% } %>
@@ -121,6 +121,26 @@
 
       <a class="profile-platform-cta" id="join-biolink" href="<%= joinHref %>">Join <%= order.slug %> on myurlc.com</a>
     </div>
+  </div>
+
+  <div class="profile-mobile-dock" aria-label="Quick actions">
+    <a class="profile-mobile-dock-button" href="<%= subscribeHref %>">
+      <span class="icon-svg"><%- iconSvg("subscribe") %></span>
+      <span>Subscribe</span>
+    </a>
+    <button
+      class="profile-mobile-dock-button profile-mobile-dock-button-ghost"
+      type="button"
+      data-share-page
+      data-share-url="<%= order.public_url %>"
+      data-share-title="<%= order.business_name %>"
+      data-share-text="Check out <%= order.business_name %> on myurlc.com"
+      aria-label="Share this page"
+    >
+      <span class="icon-svg"><%- iconSvg("share") %></span>
+      <span data-share-label>Share</span>
+    </button>
+    <a class="profile-mobile-dock-primary" href="<%= joinHref %>">Join @<%= order.slug %></a>
   </div>
 </div>
 

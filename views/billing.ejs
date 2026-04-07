@@ -15,10 +15,15 @@
 
   <main class="container billing-layout">
     <section class="card billing-main">
-      <p class="eyebrow"><%= user.has_bonus_access ? 'Referral rewards active' : (trialExpired ? 'Trial ended' : 'Upgrade anytime') %></p>
-      <h1><%= user.has_bonus_access ? 'Your referrals are earning extra service time.' : (trialExpired ? 'Continue your page with a paid plan.' : 'Keep your page ready before trial ends.') %></h1>
+      <p class="eyebrow"><%= user.has_lifetime_plan ? 'Founder plan active' : (user.has_bonus_access ? 'Referral rewards active' : (trialExpired ? 'Trial ended' : 'Upgrade anytime')) %></p>
+      <h1><%= user.has_lifetime_plan ? 'You locked in a founder account for life.' : (user.has_bonus_access ? 'Your referrals are earning extra service time.' : (trialExpired ? 'Continue your page with a paid plan.' : 'Keep your page ready before trial ends.')) %></h1>
       <p class="lead">
-        <% if (trialExpired) { %>
+        <% if (user.has_lifetime_plan) { %>
+          You are one of the first <%= founderOffer.limit %> users, so your myurlc.com account stays active for life.
+          <% if (user.founder_slot_number) { %>
+            Founder slot #<%= user.founder_slot_number %>.
+          <% } %>
+        <% } else if (trialExpired) { %>
           <% if (user.has_bonus_access) { %>
             Your trial ended on <%= user.formatted_trial_end %>, but referral rewards keep your access live until <%= user.formatted_access_end %>.
           <% } else { %>
@@ -44,11 +49,11 @@
       <div class="pricing-card">
         <div>
           <p class="eyebrow">Plan</p>
-          <h2><%= planName %></h2>
-          <p class="section-copy">Customization, publishing, and ongoing account access.</p>
+          <h2><%= user.has_lifetime_plan ? 'Founding 100 Lifetime' : planName %></h2>
+          <p class="section-copy"><%= user.has_lifetime_plan ? 'Customization, publishing, and ongoing access are locked in for life.' : 'Customization, publishing, and ongoing account access.' %></p>
         </div>
         <div class="pricing-amount">
-          <strong><%= planPriceDisplay %></strong>
+          <strong><%= user.has_lifetime_plan ? '$0 forever' : planPriceDisplay %></strong>
         </div>
       </div>
 
@@ -86,9 +91,9 @@
         <p class="field-hint">Each new signup through your code adds 1 month of free service, up to a full year.</p>
       </div>
 
-      <% if (user.has_active_plan || user.has_bonus_access) { %>
+      <% if (user.has_lifetime_plan || user.has_active_plan || user.has_bonus_access) { %>
         <a class="btn" href="/studio">Open studio</a>
-        <% if (billingConfigured && !user.has_active_plan) { %>
+        <% if (billingConfigured && !user.has_active_plan && !user.has_lifetime_plan) { %>
           <form method="POST" action="/billing/create-checkout-session">
             <button class="btn btn-secondary" type="submit">Upgrade now</button>
           </form>
@@ -106,17 +111,28 @@
 
     <aside class="card billing-side">
       <p class="eyebrow">Account status</p>
-      <h2><%= user.has_active_plan ? 'Active plan' : (user.has_bonus_access ? 'Referral access' : (trialExpired ? 'Payment required' : 'Trial running')) %></h2>
+      <h2><%= user.has_lifetime_plan ? 'Founder account' : (user.has_active_plan ? 'Active plan' : (user.has_bonus_access ? 'Referral access' : (trialExpired ? 'Payment required' : 'Trial running'))) %></h2>
       <div class="billing-status-list">
         <div class="status-row">
           <span>Status</span>
           <strong><%= user.billing_status %></strong>
         </div>
+        <% if (user.has_lifetime_plan) { %>
+          <div class="status-row">
+            <span>Founder slot</span>
+            <strong>#<%= user.founder_slot_number %></strong>
+          </div>
+        <% } %>
         <div class="status-row">
           <span>Trial end</span>
           <strong><%= user.formatted_trial_end %></strong>
         </div>
-        <% if (user.has_bonus_access) { %>
+        <% if (user.has_lifetime_plan) { %>
+          <div class="status-row">
+            <span>Access</span>
+            <strong>Lifetime</strong>
+          </div>
+        <% } else if (user.has_bonus_access) { %>
           <div class="status-row">
             <span>Referral access until</span>
             <strong><%= user.formatted_access_end %></strong>

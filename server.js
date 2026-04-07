@@ -13,12 +13,15 @@ const slugify = require("slugify");
 const app = express();
 
 const PORT = Number(process.env.PORT || 3000);
-const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const CANONICAL_PUBLIC_HOST = "www.myurlc.com";
+const REFERRAL_CODE_MAX_LENGTH = 12;
+const BASE_URL = normalizeBaseUrl(process.env.BASE_URL || `http://localhost:${PORT}`);
 const SESSION_SECRET = process.env.SESSION_SECRET || "dev_secret_change_me";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || "";
 const OFFER_PRICE_DISPLAY = process.env.OFFER_PRICE_DISPLAY || "$1";
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "info@myurlc.com";
 const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 7);
 const PLAN_NAME = process.env.PLAN_NAME || "myurlc.com Pro";
 const PLAN_PRICE_DISPLAY = process.env.PLAN_PRICE_DISPLAY || "$9/month";
@@ -64,6 +67,7 @@ const MAX_LINKS = 20;
 const STUDIO_LINK_ROWS = MAX_LINKS;
 const PLAN_ACCESS_DAYS = Number(process.env.PLAN_ACCESS_DAYS || 30);
 const REFERRAL_BONUS_MONTHS_MAX = Number(process.env.REFERRAL_BONUS_MONTHS_MAX || 12);
+const FOUNDING_MEMBER_LIMIT = Number(process.env.FOUNDING_MEMBER_LIMIT || 100);
 const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 32;
 const USERNAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -116,6 +120,15 @@ app.use(session({
     secure: process.env.NODE_ENV === "production"
   }
 }));
+
+app.use((req, res, next) => {
+  const hostname = String(req.hostname || "").toLowerCase();
+  if (hostname === "myurlc.com") {
+    return res.redirect(301, `https://${CANONICAL_PUBLIC_HOST}${req.originalUrl}`);
+  }
+
+  return next();
+});
 
 const storage = multer.diskStorage({
   destination(req, file, cb) {
@@ -175,7 +188,8 @@ function normalizeStore(store = {}) {
     orders: Array.isArray(store.orders) ? store.orders : [],
     usernames: Array.isArray(store.usernames) ? store.usernames : [],
     analytics_events: Array.isArray(store.analytics_events) ? store.analytics_events : [],
-    leads: Array.isArray(store.leads) ? store.leads : []
+    leads: Array.isArray(store.leads) ? store.leads : [],
+    support_tickets: Array.isArray(store.support_tickets) ? store.support_tickets : []
   };
 }
 
@@ -186,14 +200,14 @@ if (!fs.existsSync(dataFile)) {
 function readStore() {
   try {
     const raw = fs.readFileSync(dataFile, "utf8");
-    return syncUsernameRegistry(normalizeStore(JSON.parse(raw)));
+    return syncStore(JSON.parse(raw));
   } catch (error) {
-    return syncUsernameRegistry(normalizeStore());
+    return syncStore(normalizeStore());
   }
 }
 
 function writeStore(store) {
-  fs.writeFileSync(dataFile, JSON.stringify(syncUsernameRegistry(normalizeStore(store)), null, 2));
+  fs.writeFileSync(dataFile, JSON.stringify(syncStore(store), null, 2));
 }
 
 function nextId(records) {
@@ -238,6 +252,30 @@ function sanitizeAccentColor(value) {
 function sanitizeLeadPrompt(value) {
   const trimmed = String(value || "").trim();
   return trimmed ? trimmed.slice(0, 140) : "Send me a quick message";
+}
+
+function normalizeBaseUrl(value) {
+  const fallback = `http://localhost:${PORT}`;
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return fallback;
+  }
+
+  try {
+    const parsed = new URL(raw.includes("://") ? raw : `https://${raw}`);
+    const hostname = parsed.hostname.toLowerCase();
+
+    if (hostname === "myurlc.com" || hostname === CANONICAL_PUBLIC_HOST) {
+      return `https://${CANONICAL_PUBLIC_HOST}`;
+    }
+
+    const useHttp = hostname === "localhost" || hostname === "127.0.0.1";
+    const protocol = useHttp ? parsed.protocol : "https:";
+    const port = parsed.port ? `:${parsed.port}` : "";
+    return `${protocol}//${parsed.hostname}${port}`;
+  } catch (error) {
+    return fallback;
+  }
 }
 
 function makeSlug(text) {
@@ -326,6 +364,198 @@ function syncUsernameRegistry(store) {
   };
 }
 
+function buildReferralSeedList(user, orders = []) {
+  const latestOrder = [...(Array.isArray(orders) ? orders : [])]
+    .sort((left, right) => {
+      return new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime();
+    })[0];
+
+  return [
+    latestOrder?.slug || "",
+    getPrimaryReferralSeed(user.name),
+    user.business_name || "",
+    user.name || ""
+  ];
+}
+
+function buildReferralCodeCandidates(seeds = []) {
+  const seen = new Set();
+  return arrayify(seeds)
+    .map((seed) => sanitizeReferralCode(seed).slice(0, REFERRAL_CODE_MAX_LENGTH))
+    .filter((candidate) => {
+      if (!candidate || seen.has(candidate)) {
+        return false;
+      }
+
+      seen.add(candidate);
+      return true;
+    });
+}
+
+function reserveAvailableReferralCode(existingCodes, seeds = []) {
+  const candidates = buildReferralCodeCandidates(seeds);
+
+  for (const candidate of candidates) {
+    if (!existingCodes.has(candidate)) {
+      return candidate;
+    }
+
+    for (let counter = 2; counter < 1000; counter += 1) {
+      const suffix = String(counter);
+      const base = candidate.slice(0, Math.max(1, REFERRAL_CODE_MAX_LENGTH - suffix.length));
+      const nextCandidate = `${base}${suffix}`;
+      if (!existingCodes.has(nextCandidate)) {
+        return nextCandidate;
+      }
+    }
+  }
+
+  let randomCandidate = "";
+  while (!randomCandidate || existingCodes.has(randomCandidate)) {
+    randomCandidate = `MY${crypto.randomBytes(5).toString("hex").toUpperCase()}`.slice(0, REFERRAL_CODE_MAX_LENGTH);
+  }
+
+  return randomCandidate;
+}
+
+function shouldUpgradeLegacyReferralCode(currentCode, preferredCode) {
+  if (!currentCode || !preferredCode || currentCode === preferredCode) {
+    return false;
+  }
+
+  return currentCode.length <= 6 && preferredCode.length > currentCode.length && preferredCode.startsWith(currentCode);
+}
+
+function getPrimaryReferralSeed(value) {
+  return String(value || "").trim().split(/\s+/)[0] || "";
+}
+
+function syncReferralCodes(store) {
+  const normalized = normalizeStore(store);
+  const ordersByUserId = normalized.orders.reduce((map, order) => {
+    const key = String(order.owner_user_id || "");
+    if (!key) {
+      return map;
+    }
+
+    const bucket = map.get(key) || [];
+    bucket.push(order);
+    map.set(key, bucket);
+    return map;
+  }, new Map());
+  const existingCodes = new Set();
+
+  const users = normalized.users.map((user) => {
+    const currentCode = sanitizeReferralCode(user.referral_code).slice(0, REFERRAL_CODE_MAX_LENGTH);
+    const referralSeeds = buildReferralSeedList(user, ordersByUserId.get(String(user.id)) || []);
+    const preferredCode = buildReferralCodeCandidates(referralSeeds)[0] || "";
+    let nextCode = currentCode;
+
+    if (!nextCode) {
+      nextCode = reserveAvailableReferralCode(existingCodes, referralSeeds);
+    } else if (shouldUpgradeLegacyReferralCode(nextCode, preferredCode) && !existingCodes.has(preferredCode)) {
+      nextCode = preferredCode;
+    } else if (existingCodes.has(nextCode)) {
+      nextCode = reserveAvailableReferralCode(existingCodes, [nextCode, ...referralSeeds]);
+    }
+
+    existingCodes.add(nextCode);
+    return {
+      ...user,
+      referral_code: nextCode
+    };
+  });
+
+  return {
+    ...normalized,
+    users
+  };
+}
+
+function syncStore(store) {
+  const normalized = syncFoundingMembers(syncReferralCodes(normalizeStore(store)));
+  return {
+    ...normalized,
+    usernames: buildUsernameRegistry(normalized.orders)
+  };
+}
+
+function syncFoundingMembers(store) {
+  const normalized = normalizeStore(store);
+  const users = [...normalized.users].map((user) => ({
+    ...user,
+    founding_member: Boolean(user.founding_member),
+    founder_slot_number: Number(user.founder_slot_number) > 0 ? Number(user.founder_slot_number) : null,
+    founding_member_granted_at: user.founding_member_granted_at || null
+  }));
+  const claimedSlots = new Set(
+    users
+      .filter((user) => user.founding_member && user.founder_slot_number)
+      .map((user) => Number(user.founder_slot_number))
+  );
+  const eligibleUsers = users
+    .filter((user) => !user.founding_member && !user.founder_slot_number)
+    .sort((left, right) => {
+      const leftTime = new Date(left.created_at || 0).getTime();
+      const rightTime = new Date(right.created_at || 0).getTime();
+      if (leftTime !== rightTime) {
+        return leftTime - rightTime;
+      }
+      return Number(left.id || 0) - Number(right.id || 0);
+    });
+
+  let nextSlot = 1;
+  const reserveNextSlot = () => {
+    while (claimedSlots.has(nextSlot)) {
+      nextSlot += 1;
+    }
+    return nextSlot;
+  };
+
+  eligibleUsers.forEach((user) => {
+    if (claimedSlots.size >= FOUNDING_MEMBER_LIMIT) {
+      return;
+    }
+
+    const slot = reserveNextSlot();
+    user.founding_member = true;
+    user.founder_slot_number = slot;
+    user.founding_member_granted_at = user.founding_member_granted_at || user.created_at || new Date().toISOString();
+    claimedSlots.add(slot);
+    nextSlot += 1;
+  });
+
+  return {
+    ...normalized,
+    users
+  };
+}
+
+function getFoundingOfferStats() {
+  const founders = getUsers()
+    .filter((user) => Boolean(user.founding_member))
+    .sort((left, right) => {
+      const leftSlot = Number(left.founder_slot_number || 0);
+      const rightSlot = Number(right.founder_slot_number || 0);
+      if (leftSlot !== rightSlot) {
+        return leftSlot - rightSlot;
+      }
+      return Number(left.id || 0) - Number(right.id || 0);
+    });
+
+  const claimed = founders.length;
+  const remaining = Math.max(0, FOUNDING_MEMBER_LIMIT - claimed);
+
+  return {
+    limit: FOUNDING_MEMBER_LIMIT,
+    claimed,
+    remaining,
+    is_open: remaining > 0,
+    next_slot: remaining > 0 ? claimed + 1 : null,
+    founders
+  };
+}
+
 function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -390,7 +620,7 @@ function formatRelativeTime(value) {
 }
 
 function normalizeBillingStatus(status) {
-  const allowed = ["trialing", "active", "referral_active", "payment_required"];
+  const allowed = ["trialing", "active", "referral_active", "payment_required", "founding_member"];
   return allowed.includes(status) ? status : "trialing";
 }
 
@@ -404,6 +634,8 @@ function toCustomerViewModel(user) {
   const trialEndsAt = parseDateValue(user.trial_ends_at) || addDays(trialStartedAt, TRIAL_DAYS);
   const now = new Date();
   const referralBonusMonthsEarned = clampNumber(user.referral_bonus_months_earned, 0, REFERRAL_BONUS_MONTHS_MAX);
+  const foundingMember = Boolean(user.founding_member);
+  const founderSlotNumber = Number(user.founder_slot_number) > 0 ? Number(user.founder_slot_number) : null;
   const referralAccessEndsAt = addDays(trialEndsAt, referralBonusMonthsEarned * PLAN_ACCESS_DAYS);
   const legacyActive = normalizeBillingStatus(user.billing_status || "trialing") === "active" && !user.paid_access_ends_at;
   const paidAccessEndsAt = parseDateValue(user.paid_access_ends_at) || (
@@ -411,13 +643,15 @@ function toCustomerViewModel(user) {
       ? addDays(maxDateValue(now, user.paid_at, trialEndsAt) || now, PLAN_ACCESS_DAYS)
       : null
   );
-  const accessEndsAt = maxDateValue(trialEndsAt, referralAccessEndsAt, paidAccessEndsAt) || trialEndsAt;
+  const accessEndsAt = foundingMember ? null : (maxDateValue(trialEndsAt, referralAccessEndsAt, paidAccessEndsAt) || trialEndsAt);
   const trialActive = now.getTime() <= trialEndsAt.getTime();
   const paidActive = paidAccessEndsAt ? now.getTime() <= paidAccessEndsAt.getTime() : false;
   const referralActive = !paidActive && !trialActive && now.getTime() <= referralAccessEndsAt.getTime();
-  const billingStatus = paidActive
+  const billingStatus = foundingMember
+    ? "founding_member"
+    : (paidActive
     ? "active"
-    : (trialActive ? "trialing" : (referralActive ? "referral_active" : "payment_required"));
+    : (trialActive ? "trialing" : (referralActive ? "referral_active" : "payment_required")));
   const trialDaysRemaining = trialActive
     ? Math.max(0, Math.ceil((trialEndsAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)))
     : 0;
@@ -436,8 +670,11 @@ function toCustomerViewModel(user) {
     trial_ends_at: trialEndsAt.toISOString(),
     referral_access_ends_at: referralAccessEndsAt.toISOString(),
     paid_access_ends_at: paidAccessEndsAt ? paidAccessEndsAt.toISOString() : null,
-    access_ends_at: accessEndsAt.toISOString(),
+    access_ends_at: accessEndsAt ? accessEndsAt.toISOString() : null,
     billing_status: billingStatus,
+    founding_member: foundingMember,
+    founder_slot_number: founderSlotNumber,
+    founding_member_granted_at: user.founding_member_granted_at || null,
     trial_expired: !trialActive,
     trial_days_remaining: trialDaysRemaining,
     referral_days_remaining: referralDaysRemaining,
@@ -446,13 +683,15 @@ function toCustomerViewModel(user) {
     successful_referrals_count: successfulReferralsCount,
     referral_months_remaining_to_earn: referralMonthsRemainingToEarn,
     referral_code: sanitizeReferralCode(user.referral_code),
-    has_active_plan: paidActive,
+    has_active_plan: paidActive || foundingMember,
+    has_lifetime_plan: foundingMember,
     has_bonus_access: referralActive,
-    can_access_studio: now.getTime() <= accessEndsAt.getTime(),
+    can_access_studio: foundingMember || now.getTime() <= accessEndsAt.getTime(),
     formatted_trial_end: formatDate(trialEndsAt.toISOString()),
     formatted_referral_access_end: formatDate(referralAccessEndsAt.toISOString()),
-    formatted_paid_access_end: paidAccessEndsAt ? formatDate(paidAccessEndsAt.toISOString()) : "",
-    formatted_access_end: formatDate(accessEndsAt.toISOString()),
+    formatted_paid_access_end: foundingMember ? "Lifetime" : (paidAccessEndsAt ? formatDate(paidAccessEndsAt.toISOString()) : ""),
+    formatted_access_end: foundingMember ? "Lifetime" : formatDate(accessEndsAt.toISOString()),
+    formatted_founding_member_granted_at: user.founding_member_granted_at ? formatDate(user.founding_member_granted_at) : "",
     referral_share_url: sanitizeReferralCode(user.referral_code) ? `${BASE_URL}/ref/${encodeURIComponent(sanitizeReferralCode(user.referral_code))}` : ""
   };
 }
@@ -658,6 +897,7 @@ function iconSvg(name) {
     brand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.9 5.4L19 9.3l-4.1 3 1.6 5.3L12 14.4 7.5 17.6l1.6-5.3-4.1-3 5.1-1.9L12 2z" fill="currentColor"/></svg>',
     share: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5h4v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 14L19 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 13v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     subscribe: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a2.5 2.5 0 0 0 2.3-1.5h-4.6A2.5 2.5 0 0 0 12 21z" fill="currentColor"/><path d="M18 16H6l1.4-1.7V10a4.6 4.6 0 1 1 9.2 0v4.3L18 16z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    help: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h7a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3l4 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.4 9.2a2.7 2.7 0 0 1 5 .8c0 1.5-1.5 2.1-2.1 2.6-.5.4-.8.7-.8 1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="16.9" r="1" fill="currentColor"/></svg>',
     instagram: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3.6" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17.1" cy="6.9" r="1" fill="currentColor"/></svg>',
     facebook: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 20v-6h2.4l.4-3h-2.8V9.2c0-.9.3-1.5 1.6-1.5h1.4V5.1c-.2 0-1-.1-2-.1-2 0-3.4 1.2-3.4 3.5V11H9v3h2.5v6h2z" fill="currentColor"/></svg>',
     tiktok: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5c.7 1.2 1.8 2.1 3.2 2.4v2.4c-1.2 0-2.3-.4-3.2-1.1V14a4.5 4.5 0 1 1-4.5-4.5c.3 0 .5 0 .8.1V12a2.3 2.3 0 1 0 1.5 2.1V4.9h2.2z" fill="currentColor"/></svg>',
@@ -807,18 +1047,12 @@ function sanitizeReferralCode(value) {
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 12);
+    .slice(0, REFERRAL_CODE_MAX_LENGTH);
 }
 
-function generateReferralCode(users, seed = "") {
+function generateReferralCode(users, ...seeds) {
   const existingCodes = new Set((Array.isArray(users) ? users : []).map((user) => sanitizeReferralCode(user.referral_code)));
-  let candidate = sanitizeReferralCode(seed).slice(0, 6);
-
-  while (!candidate || existingCodes.has(candidate)) {
-    candidate = `LB${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
-  }
-
-  return candidate;
+  return reserveAvailableReferralCode(existingCodes, seeds);
 }
 
 function getUsers() {
@@ -844,7 +1078,24 @@ function getUserByReferralCode(code) {
     return null;
   }
 
-  return getUsers().find((user) => sanitizeReferralCode(user.referral_code) === normalized) || null;
+  const users = getUsers();
+  const exactMatch = users.find((user) => sanitizeReferralCode(user.referral_code) === normalized);
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  if (normalized.length <= 6) {
+    const legacyMatches = users.filter((user) => {
+      const candidate = sanitizeReferralCode(user.referral_code);
+      return candidate.length > normalized.length && candidate.startsWith(normalized);
+    });
+
+    if (legacyMatches.length === 1) {
+      return legacyMatches[0];
+    }
+  }
+
+  return null;
 }
 
 function countReferralSignupsForUser(userId) {
@@ -874,7 +1125,7 @@ function createUser(input) {
     paid_access_ends_at: null,
     paid_at: null,
     billing_checkout_session_id: null,
-    referral_code: generateReferralCode(store.users, input.business_name || input.name),
+    referral_code: generateReferralCode(store.users, getPrimaryReferralSeed(input.name), input.business_name, input.name),
     referred_by_user_id: referredByUserId,
     referral_bonus_months_earned: 0,
     created_at: now.toISOString()
@@ -882,7 +1133,7 @@ function createUser(input) {
 
   store.users.push(user);
   writeStore(store);
-  return toCustomerViewModel(user);
+  return toCustomerViewModel(getUserById(user.id));
 }
 
 function updateUser(id, updates) {
@@ -910,7 +1161,7 @@ function updateUser(id, updates) {
 
   store.users[index] = nextUser;
   writeStore(store);
-  return toCustomerViewModel(nextUser);
+  return toCustomerViewModel(getUserById(id));
 }
 
 function ensureUserReferralCode(userId) {
@@ -924,7 +1175,7 @@ function ensureUserReferralCode(userId) {
   }
 
   return updateUser(userId, {
-    referral_code: generateReferralCode(getUsers(), user.business_name || user.name)
+    referral_code: generateReferralCode(getUsers(), getPrimaryReferralSeed(user.name), user.business_name, user.name)
   });
 }
 
@@ -1020,6 +1271,65 @@ function createLead(input) {
   store.leads.push(lead);
   writeStore(store);
   return lead;
+}
+
+function getSupportTickets() {
+  return readStore().support_tickets;
+}
+
+function listSupportTickets() {
+  return [...getSupportTickets()].sort((left, right) => {
+    return new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime();
+  });
+}
+
+function getSupportTicketById(id) {
+  return getSupportTickets().find((ticket) => String(ticket.id) === String(id)) || null;
+}
+
+function createSupportTicket(input) {
+  const store = readStore();
+  const ticket = {
+    id: nextId(store.support_tickets),
+    user_id: input.user_id || null,
+    name: String(input.name || "").trim(),
+    email: normalizeEmail(input.email),
+    category: ["bug", "help", "billing", "feature"].includes(String(input.category || "").trim().toLowerCase())
+      ? String(input.category || "").trim().toLowerCase()
+      : "help",
+    subject: String(input.subject || "").trim().slice(0, 140),
+    message: String(input.message || "").trim().slice(0, 5000),
+    page_url: String(input.page_url || "").trim().slice(0, 500),
+    status: "open",
+    created_at: new Date().toISOString()
+  };
+
+  store.support_tickets.push(ticket);
+  writeStore(store);
+  return ticket;
+}
+
+function updateSupportTicket(id, updates) {
+  const store = readStore();
+  const index = store.support_tickets.findIndex((ticket) => String(ticket.id) === String(id));
+
+  if (index === -1) {
+    return null;
+  }
+
+  const existing = store.support_tickets[index];
+  const nextTicket = {
+    ...existing,
+    ...updates,
+    email: normalizeEmail(updates.email ?? existing.email),
+    status: ["open", "resolved"].includes(String(updates.status || existing.status || "open"))
+      ? String(updates.status || existing.status || "open")
+      : "open"
+  };
+
+  store.support_tickets[index] = nextTicket;
+  writeStore(store);
+  return nextTicket;
 }
 
 function getOrders() {
@@ -1460,7 +1770,8 @@ function renderAuthPage(res, view, options = {}) {
     pageTitle: options.pageTitle,
     error: options.error || null,
     info: options.info || null,
-    values: options.values || {}
+    values: options.values || {},
+    founderOffer: getFoundingOfferStats()
   });
 }
 
@@ -1531,6 +1842,30 @@ function renderBilling(res, user, row, options = {}) {
   });
 }
 
+function buildSupportValues(body = {}, customer = null) {
+  return {
+    name: String(body.name || customer?.name || "").trim(),
+    email: normalizeEmail(body.email || customer?.email || ""),
+    category: ["bug", "help", "billing", "feature"].includes(String(body.category || "").trim().toLowerCase())
+      ? String(body.category || "").trim().toLowerCase()
+      : "bug",
+    subject: String(body.subject || "").trim(),
+    message: String(body.message || "").trim(),
+    page_url: String(body.page_url || "").trim()
+  };
+}
+
+function renderSupportPage(res, options = {}) {
+  const statusCode = options.statusCode || 200;
+  return res.status(statusCode).render("support", {
+    pageTitle: "Help & Support",
+    error: options.error || null,
+    info: options.info || null,
+    values: options.values || buildSupportValues({}, options.customer || null),
+    currentCustomer: options.customer || null
+  });
+}
+
 app.use((req, res, next) => {
   res.locals.baseUrl = BASE_URL;
   res.locals.offerPriceDisplay = OFFER_PRICE_DISPLAY;
@@ -1542,11 +1877,13 @@ app.use((req, res, next) => {
   res.locals.themeOptions = THEME_OPTIONS;
   res.locals.linkSectionOptions = LINK_SECTION_OPTIONS;
   res.locals.socialLinkSuggestions = SOCIAL_LINK_SUGGESTIONS;
+  res.locals.supportEmail = SUPPORT_EMAIL;
   res.locals.buildPhoneContactActions = buildPhoneContactActions;
   res.locals.iconSvg = iconSvg;
   res.locals.initialVisibleLinkRows = INITIAL_VISIBLE_LINK_ROWS;
   res.locals.maxLinks = MAX_LINKS;
   res.locals.currentCustomer = getCurrentCustomer(req);
+  res.locals.founderOffer = getFoundingOfferStats();
   next();
 });
 
@@ -1570,7 +1907,51 @@ app.get("/", (req, res) => {
   res.render("home", {
     pageTitle: "Custom Link Pages",
     published,
-    recentSignups
+    recentSignups,
+    founderOffer: getFoundingOfferStats()
+  });
+});
+
+app.get("/support", (req, res) => {
+  const customer = getCurrentCustomer(req);
+  const values = buildSupportValues({
+    page_url: String(req.query.from || "").trim()
+  }, customer);
+
+  return renderSupportPage(res, {
+    customer,
+    values,
+    info: req.query.sent ? `Ticket received. You can also email ${SUPPORT_EMAIL} directly if needed.` : null
+  });
+});
+
+app.post("/support", (req, res) => {
+  const customer = getCurrentCustomer(req);
+  const values = buildSupportValues(req.body, customer);
+
+  if (!values.name || !values.email || !values.subject || !values.message) {
+    return renderSupportPage(res, {
+      statusCode: 400,
+      customer,
+      values,
+      error: "Name, email, subject, and message are required."
+    });
+  }
+
+  createSupportTicket({
+    user_id: customer?.id || null,
+    name: values.name,
+    email: values.email,
+    category: values.category,
+    subject: values.subject,
+    message: values.message,
+    page_url: values.page_url
+  });
+
+  return renderSupportPage(res, {
+    customer,
+    values: buildSupportValues({}, customer),
+    info: `Ticket received. We will review it at ${SUPPORT_EMAIL}.`
   });
 });
 
@@ -2021,7 +2402,9 @@ app.get("/admin", requireAdmin, (req, res) => {
   const orders = listOrders().map(toOrderViewModel);
   const analyticsEvents = listAnalyticsEvents();
   const leads = listLeads();
+  const supportTickets = listSupportTickets();
   const users = listUsers().map(toCustomerViewModel);
+  const founderOffer = getFoundingOfferStats();
   const stats = {
     total: orders.length,
     published: orders.filter((order) => order.is_published).length,
@@ -2029,15 +2412,29 @@ app.get("/admin", requireAdmin, (req, res) => {
     draft: orders.filter((order) => !order.is_published).length,
     clicks: analyticsEvents.filter((event) => event.event_type === "link_click").length,
     leads: leads.length,
+    tickets: supportTickets.length,
     users: users.length,
-    referralMonths: users.reduce((sum, user) => sum + (user.referral_bonus_months_earned || 0), 0)
+    referralMonths: users.reduce((sum, user) => sum + (user.referral_bonus_months_earned || 0), 0),
+    founderMembers: founderOffer.claimed,
+    founderRemaining: founderOffer.remaining
   };
 
   res.render("admin", {
     pageTitle: "Admin Dashboard",
     orders,
-    stats
+    stats,
+    recentSupportTickets: supportTickets.slice(0, 8)
   });
+});
+
+app.post("/admin/ticket/:id/resolve", requireAdmin, (req, res) => {
+  const ticket = getSupportTicketById(req.params.id);
+  if (!ticket) {
+    return res.status(404).send("Ticket not found");
+  }
+
+  updateSupportTicket(req.params.id, { status: "resolved" });
+  return res.redirect("/admin?supportSaved=1");
 });
 
 app.get("/admin/order/:id", requireAdmin, (req, res) => {

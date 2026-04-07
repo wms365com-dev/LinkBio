@@ -38,6 +38,10 @@
         <strong><%= stats.leads %></strong>
       </article>
       <article class="card stat-card">
+        <span>Support tickets</span>
+        <strong><%= stats.tickets %></strong>
+      </article>
+      <article class="card stat-card">
         <span>Users</span>
         <strong><%= stats.users %></strong>
       </article>
@@ -45,6 +49,52 @@
         <span>Referral months</span>
         <strong><%= stats.referralMonths %></strong>
       </article>
+      <article class="card stat-card">
+        <span>Founder members</span>
+        <strong><%= stats.founderMembers %></strong>
+      </article>
+      <article class="card stat-card">
+        <span>Founder spots left</span>
+        <strong><%= stats.founderRemaining %></strong>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <div>
+          <p class="eyebrow">Support queue</p>
+          <h2>Recent tickets</h2>
+        </div>
+      </div>
+
+      <div class="lead-list">
+        <% if (!recentSupportTickets || recentSupportTickets.length === 0) { %>
+          <div class="empty-state">
+            <h3>No tickets yet</h3>
+            <p>Bug reports and help requests sent to support will show up here.</p>
+          </div>
+        <% } %>
+
+        <% (recentSupportTickets || []).forEach(ticket => { %>
+          <article class="lead-item">
+            <span><strong>#<%= ticket.id %></strong> • <%= ticket.category %> • <%= ticket.status %></span>
+            <strong><%= ticket.subject %></strong>
+            <small><%= ticket.name %> • <a class="text-link" href="mailto:<%= ticket.email %>"><%= ticket.email %></a></small>
+            <% if (ticket.page_url) { %>
+              <small><%= ticket.page_url %></small>
+            <% } %>
+            <p><%= ticket.message %></p>
+            <div class="actions">
+              <a class="btn btn-secondary" href="mailto:<%= supportEmail %>?subject=Re:%20<%= encodeURIComponent(ticket.subject) %>&body=<%= encodeURIComponent(`Ticket #${ticket.id} from ${ticket.name} (${ticket.email})`) %>">Reply</a>
+              <% if (ticket.status !== 'resolved') { %>
+                <form method="POST" action="/admin/ticket/<%= ticket.id %>/resolve">
+                  <button class="btn" type="submit">Mark resolved</button>
+                </form>
+              <% } %>
+            </div>
+          </article>
+        <% }) %>
+      </div>
     </section>
 
     <section class="card table-wrap">

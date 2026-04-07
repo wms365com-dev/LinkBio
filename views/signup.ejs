@@ -8,11 +8,23 @@
 
   <main class="container auth-grid">
     <section class="card auth-copy-card">
+      <div class="founder-banner founder-banner-compact">
+        <div class="founder-banner-topline">
+          <span class="founder-chip">Founder 100</span>
+          <span class="founder-count"><%= founderOffer.claimed %> / <%= founderOffer.limit %> claimed</span>
+        </div>
+        <strong>Free for the first 100 users for life!</strong>
+        <p>
+          <%= founderOffer.is_open
+            ? `${founderOffer.remaining} founder spot${founderOffer.remaining === 1 ? "" : "s"} still open right now.`
+            : "The founding 100 is full, but you can still start with the normal free trial." %>
+        </p>
+      </div>
       <p class="eyebrow">Self-serve launch</p>
       <h1>Sign up and start building your page.</h1>
       <p class="lead">
         Create an account, claim your username, and customize your link page without waiting for manual setup.
-        Every account starts with a <%= trialDays %>-day free trial.
+        The first <%= founderOffer.limit %> users get lifetime access, and everyone after that starts with a <%= trialDays %>-day free trial.
       </p>
       <div class="feature-list">
         <div class="feature-item">Pick a theme and accent color</div>
@@ -24,7 +36,11 @@
     <section class="card auth-form-card">
       <p class="eyebrow">Create account</p>
       <h2>Start your myurlc.com page</h2>
-      <p class="field-hint"><%= trialDays %>-day free trial, then <%= planPriceDisplay %>.</p>
+      <p class="field-hint">
+        <%= founderOffer.is_open
+          ? `Join now and you could still lock in a free-for-life founder slot.`
+          : `${trialDays}-day free trial, then ${planPriceDisplay}.` %>
+      </p>
 
       <% if (error) { %>
         <div class="error"><%= error %></div>

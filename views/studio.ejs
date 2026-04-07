@@ -33,7 +33,14 @@
         </div>
       </div>
 
-      <% if (!user.has_active_plan) { %>
+      <% if (user.has_lifetime_plan) { %>
+        <div class="success founder-status-card">
+          You are in the founding 100. This account is free for life.
+          <% if (user.founder_slot_number) { %>
+            <strong>Founder slot #<%= user.founder_slot_number %>.</strong>
+          <% } %>
+        </div>
+      <% } else if (!user.has_active_plan) { %>
         <div class="<%= user.has_bonus_access ? 'success' : (user.trial_expired ? 'error' : 'notice') %>">
           <% if (user.has_bonus_access) { %>
             Referral rewards are covering your account through <strong><%= user.formatted_access_end %></strong>.
@@ -58,6 +65,13 @@
       <% if (info) { %>
         <div class="success"><%= info %></div>
       <% } %>
+
+      <nav class="mobile-studio-nav" aria-label="Jump to studio sections">
+        <a class="mobile-studio-nav-link" href="#studio-profile">Profile</a>
+        <a class="mobile-studio-nav-link" href="#studio-style">Style</a>
+        <a class="mobile-studio-nav-link" href="#studio-links">Links</a>
+        <a class="mobile-studio-nav-link" href="#studio-publish">Publish</a>
+      </nav>
 
       <div class="card subtle-card referral-card">
         <div class="section-header">
@@ -101,7 +115,7 @@
       </datalist>
 
       <form method="POST" action="/studio" enctype="multipart/form-data" class="form-stack">
-        <div class="form-grid two">
+        <div class="form-grid two studio-section" id="studio-profile">
           <div>
             <label>Full name</label>
             <input name="full_name" value="<%= values.full_name %>" required />
@@ -133,7 +147,7 @@
         </div>
         <textarea name="bio" rows="4" placeholder="Tell visitors what you do."><%= values.bio %></textarea>
 
-        <div class="form-grid two">
+        <div class="form-grid two studio-section" id="studio-style">
           <div>
             <label>Phone or WhatsApp</label>
             <input name="phone" value="<%= values.phone %>" placeholder="+1 555 555 5555" />
@@ -200,7 +214,7 @@
         <label>Lead form headline</label>
         <input name="lead_form_prompt" value="<%= values.lead_form_prompt %>" placeholder="Send me a quick message" />
 
-        <div class="section-header">
+        <div class="section-header studio-section" id="studio-links">
           <div>
             <h2>Buttons and links</h2>
             <p class="section-copy">Choose one of the built-in sections for every link. Social links render as icons under the profile, while the other sections show full buttons.</p>
@@ -228,7 +242,7 @@
           </div>
         </div>
 
-        <div class="actions studio-actions">
+        <div class="actions studio-actions studio-section" id="studio-publish">
           <button class="btn btn-secondary" type="submit" name="intent" value="save_draft">Save draft</button>
           <% if (order && order.is_published) { %>
             <button class="btn btn-ghost" type="submit" name="intent" value="unpublish">Unpublish</button>

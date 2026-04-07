@@ -19,18 +19,30 @@
   <main class="container">
     <section class="card hero-card">
       <div class="hero-copy">
+        <div class="founder-banner">
+          <div class="founder-banner-topline">
+            <span class="founder-chip">Founder 100</span>
+            <span class="founder-count"><%= founderOffer.claimed %> / <%= founderOffer.limit %> claimed</span>
+          </div>
+          <strong>Free for the first 100 users for life!</strong>
+          <p>
+            <%= founderOffer.is_open
+              ? `${founderOffer.remaining} founder spot${founderOffer.remaining === 1 ? "" : "s"} left. Early users get lifetime access automatically.`
+              : "The founding 100 has been claimed. New accounts still start with the regular free trial." %>
+          </p>
+        </div>
         <p class="eyebrow">Self-serve or done-for-you</p>
-        <h1>Let people sign up and build branded bio pages like Linktree.</h1>
+        <h1>Build a sharp bio page on a brand that feels launch-ready.</h1>
         <p class="lead">
           Customers can create an account, start customizing their page right away, and publish it
-          themselves. Every self-serve account starts with a <%= trialDays %>-day free trial, then moves to <%= planPriceDisplay %>.
+          themselves. The first <%= founderOffer.limit %> users are free for life, and everyone after that starts with a <%= trialDays %>-day free trial before moving to <%= planPriceDisplay %>.
         </p>
         <div class="actions">
           <a class="btn" href="<%= currentCustomer ? (currentCustomer.can_access_studio ? '/studio' : '/billing') : '/signup' %>"><%= currentCustomer ? (currentCustomer.can_access_studio ? 'Open your studio' : 'Upgrade your account') : 'Create an account' %></a>
           <a class="btn btn-secondary" href="/buy">Offer done-for-you setup</a>
         </div>
         <div class="hero-badges">
-          <span><%= trialDays %>-day free trial</span>
+          <span><%= founderOffer.is_open ? `${founderOffer.remaining} founder spots left` : "Founder offer closed" %></span>
           <span>Self-serve page builder</span>
           <span>Customer signup + login</span>
           <span>Admin-managed back office</span>
