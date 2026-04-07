@@ -30,6 +30,10 @@
         <div class="error"><%= error %></div>
       <% } %>
 
+      <% if (info) { %>
+        <div class="success"><%= info %></div>
+      <% } %>
+
       <form method="POST" action="/signup" class="form-stack">
         <div class="form-grid two">
           <div>
@@ -48,6 +52,10 @@
         <label>Password</label>
         <input name="password" type="password" minlength="8" required />
         <p class="field-hint">Use at least 8 characters.</p>
+
+        <label>Referral code</label>
+        <input name="referral_code" value="<%= values.referral_code || '' %>" placeholder="Optional referral code" />
+        <p class="field-hint">If someone invited you, their code gives them 1 free month when you sign up.</p>
 
         <button class="btn" type="submit">Create account</button>
       </form>

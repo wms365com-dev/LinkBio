@@ -4,7 +4,7 @@
   <header class="marketing-nav container">
     <a class="brand-mark" href="/">LinkBio Studio</a>
     <div class="nav-actions">
-      <% if (!trialExpired) { %>
+      <% if (user.can_access_studio) { %>
         <a class="btn btn-ghost" href="/studio">Back to studio</a>
       <% } %>
       <form method="POST" action="/logout">
@@ -15,13 +15,19 @@
 
   <main class="container billing-layout">
     <section class="card billing-main">
-      <p class="eyebrow"><%= trialExpired ? 'Trial ended' : 'Upgrade anytime' %></p>
-      <h1><%= trialExpired ? 'Continue your page with a paid plan.' : 'Keep your page ready before trial ends.' %></h1>
+      <p class="eyebrow"><%= user.has_bonus_access ? 'Referral rewards active' : (trialExpired ? 'Trial ended' : 'Upgrade anytime') %></p>
+      <h1><%= user.has_bonus_access ? 'Your referrals are earning extra service time.' : (trialExpired ? 'Continue your page with a paid plan.' : 'Keep your page ready before trial ends.') %></h1>
       <p class="lead">
         <% if (trialExpired) { %>
-          Your 7-day free trial ended on <%= user.formatted_trial_end %>. Upgrade to keep editing and publishing your page.
+          <% if (user.has_bonus_access) { %>
+            Your trial ended on <%= user.formatted_trial_end %>, but referral rewards keep your access live until <%= user.formatted_access_end %>.
+          <% } else { %>
+            Your 7-day free trial ended on <%= user.formatted_trial_end %>. Upgrade to keep editing and publishing your page.
+          <% } %>
         <% } else if (user.has_active_plan) { %>
-          Your plan is active. Billing is handled and your page can stay live.
+          Your plan is active through <%= user.formatted_access_end %>. Billing is handled and your page can stay live.
+        <% } else if (user.has_bonus_access) { %>
+          Your referral rewards are covering service through <%= user.formatted_access_end %>. You can keep editing without paying yet.
         <% } else { %>
           Your trial ends on <%= user.formatted_trial_end %>. Upgrade now so your page stays live without interruption.
         <% } %>
@@ -52,8 +58,41 @@
         <div class="feature-item">Use custom themes, branding, and button links</div>
       </div>
 
-      <% if (user.has_active_plan) { %>
+      <div class="card subtle-card">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Referral program</p>
+            <h2>Earn up to 12 free months</h2>
+          </div>
+        </div>
+        <div class="billing-status-list">
+          <div class="status-row">
+            <span>Referral code</span>
+            <strong><%= user.referral_code %></strong>
+          </div>
+          <div class="status-row">
+            <span>Share link</span>
+            <strong class="billing-url"><%= user.referral_share_url %></strong>
+          </div>
+          <div class="status-row">
+            <span>Successful referrals</span>
+            <strong><%= user.successful_referrals_count %></strong>
+          </div>
+          <div class="status-row">
+            <span>Free months earned</span>
+            <strong><%= user.referral_bonus_months_earned %> / <%= referralBonusMonthsMax %></strong>
+          </div>
+        </div>
+        <p class="field-hint">Each new signup through your code adds 1 month of free service, up to a full year.</p>
+      </div>
+
+      <% if (user.has_active_plan || user.has_bonus_access) { %>
         <a class="btn" href="/studio">Open studio</a>
+        <% if (billingConfigured && !user.has_active_plan) { %>
+          <form method="POST" action="/billing/create-checkout-session">
+            <button class="btn btn-secondary" type="submit">Upgrade now</button>
+          </form>
+        <% } %>
       <% } else if (billingConfigured) { %>
         <form method="POST" action="/billing/create-checkout-session">
           <button class="btn" type="submit"><%= trialExpired ? 'Pay and continue' : 'Upgrade now' %></button>
@@ -67,7 +106,7 @@
 
     <aside class="card billing-side">
       <p class="eyebrow">Account status</p>
-      <h2><%= user.has_active_plan ? 'Active plan' : (trialExpired ? 'Payment required' : 'Trial running') %></h2>
+      <h2><%= user.has_active_plan ? 'Active plan' : (user.has_bonus_access ? 'Referral access' : (trialExpired ? 'Payment required' : 'Trial running')) %></h2>
       <div class="billing-status-list">
         <div class="status-row">
           <span>Status</span>
@@ -77,10 +116,24 @@
           <span>Trial end</span>
           <strong><%= user.formatted_trial_end %></strong>
         </div>
-        <% if (!user.has_active_plan) { %>
+        <% if (user.has_bonus_access) { %>
+          <div class="status-row">
+            <span>Referral access until</span>
+            <strong><%= user.formatted_access_end %></strong>
+          </div>
+          <div class="status-row">
+            <span>Bonus days remaining</span>
+            <strong><%= user.referral_days_remaining %></strong>
+          </div>
+        <% } else if (!user.has_active_plan) { %>
           <div class="status-row">
             <span>Days remaining</span>
             <strong><%= user.trial_days_remaining %></strong>
+          </div>
+        <% } else { %>
+          <div class="status-row">
+            <span>Paid access until</span>
+            <strong><%= user.formatted_access_end %></strong>
           </div>
         <% } %>
         <% if (order && order.public_url) { %>

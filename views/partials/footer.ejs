@@ -1,3 +1,28 @@
+<script>
+  document.querySelectorAll("[data-link-builder]").forEach((builder) => {
+    const revealButton = builder.querySelector("[data-reveal-links]");
+    const rows = Array.from(builder.querySelectorAll("[data-link-row]"));
 
+    const syncRevealButton = () => {
+      if (!revealButton) {
+        return;
+      }
+
+      const hiddenRows = rows.filter((row) => row.classList.contains("is-hidden-empty"));
+      revealButton.hidden = hiddenRows.length === 0;
+    };
+
+    revealButton?.addEventListener("click", () => {
+      rows
+        .filter((row) => row.classList.contains("is-hidden-empty"))
+        .slice(0, 4)
+        .forEach((row) => row.classList.remove("is-hidden-empty"));
+
+      syncRevealButton();
+    });
+
+    syncRevealButton();
+  });
+</script>
 </body>
 </html>

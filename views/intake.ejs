@@ -83,23 +83,44 @@
           <% }) %>
         </select>
 
-        <label>Profile image or logo</label>
-        <input name="profile_image" type="file" accept="image/*" />
+        <div class="form-grid two">
+          <div>
+            <label>Profile photo or short video</label>
+            <input name="profile_media" type="file" accept="image/*,video/*" />
+          </div>
+          <div>
+            <label>Background image</label>
+            <input name="background_image" type="file" accept="image/*" />
+          </div>
+        </div>
 
         <div class="section-header">
           <div>
             <h2>Buttons and links</h2>
-            <p class="section-copy">Start with social labels like Facebook, TikTok, LinkedIn, or use any custom label you want.</p>
+            <p class="section-copy">Pick from the built-in sections only. Social links become icons, while the other sections become button groups.</p>
           </div>
         </div>
 
-        <% values.links.forEach((link, index) => { %>
-          <% const suggestion = socialLinkSuggestions[index] || socialLinkSuggestions[socialLinkSuggestions.length - 1]; %>
-          <div class="link-row">
-            <input name="link_label" value="<%= link.label %>" placeholder="<%= suggestion.label %>" list="link-label-suggestions" />
-            <input name="link_url" value="<%= link.url %>" placeholder="<%= suggestion.placeholder %>" />
+        <div class="link-builder" data-link-builder>
+          <% values.links.forEach((link, index) => { %>
+            <% const suggestion = socialLinkSuggestions[index] || socialLinkSuggestions[socialLinkSuggestions.length - 1]; %>
+            <% const hiddenRow = index >= initialVisibleLinkRows && !link.label && !link.url; %>
+            <div class="link-row link-row-rich <%= hiddenRow ? 'is-hidden-empty' : '' %>" data-link-row>
+              <select name="link_section">
+                <% linkSectionOptions.forEach(option => { %>
+                  <option value="<%= option.value %>" <%= link.section === option.value ? 'selected' : '' %>><%= option.label %></option>
+                <% }) %>
+              </select>
+              <input name="link_label" value="<%= link.label %>" placeholder="<%= suggestion.label %>" list="link-label-suggestions" />
+              <input name="link_url" value="<%= link.url %>" placeholder="https://<%= suggestion.placeholder %>" />
+            </div>
+          <% }) %>
+
+          <div class="link-builder-tools">
+            <button class="btn btn-ghost" type="button" data-reveal-links>Show more links</button>
+            <p class="field-hint">Reveal extra rows when the customer needs more buttons.</p>
           </div>
-        <% }) %>
+        </div>
 
         <button class="btn" type="submit">Submit order</button>
       </form>

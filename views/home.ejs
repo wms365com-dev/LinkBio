@@ -37,6 +37,20 @@
           <span>Customer signup + login</span>
           <span>Admin-managed back office</span>
         </div>
+
+        <% if (recentSignups && recentSignups.length > 0) { %>
+          <div class="announcement-card">
+            <p class="announcement-label">New signups</p>
+            <div class="announcement-feed">
+              <% recentSignups.slice(0, 3).forEach(item => { %>
+                <div class="announcement-item">
+                  <strong><%= item.business_name %></strong>
+                  <span><%= item.relative_created_at %></span>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+        <% } %>
       </div>
 
       <div class="hero-preview">
@@ -51,6 +65,50 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <section class="grid two social-proof-grid">
+      <article class="card">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Just joined</p>
+            <h2>Show visitors fresh activity</h2>
+          </div>
+        </div>
+        <div class="signup-proof-list">
+          <% if (!recentSignups || recentSignups.length === 0) { %>
+            <div class="empty-state">
+              <h3>No signups yet</h3>
+              <p>Once accounts start coming in, this feed becomes social proof for new visitors.</p>
+            </div>
+          <% } %>
+
+          <% (recentSignups || []).forEach(item => { %>
+            <article class="signup-proof-item">
+              <div>
+                <strong><%= item.business_name %></strong>
+                <p><%= item.message %></p>
+              </div>
+              <span><%= item.relative_created_at %></span>
+            </article>
+          <% }) %>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Referral loop</p>
+            <h2>Reward customers for bringing the next one in</h2>
+          </div>
+        </div>
+        <div class="feature-list">
+          <div class="feature-item">Every account gets a shareable referral link</div>
+          <div class="feature-item">Each successful referral earns 1 free month</div>
+          <div class="feature-item">Rewards stack up to 12 months of free service</div>
+        </div>
+        <a class="btn" href="<%= currentCustomer ? '/billing' : '/signup' %>"><%= currentCustomer ? 'Open referral tools' : 'Create an account' %></a>
+      </article>
     </section>
 
     <section class="grid three">

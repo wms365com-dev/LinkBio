@@ -20,7 +20,7 @@
           <p class="eyebrow">Page studio</p>
           <h1>Customize your link page</h1>
           <p class="section-copy">
-            Edit your page, save as a draft, and publish whenever you are ready.
+            Add media, organize links into built-in sections, and publish whenever the page feels ready.
           </p>
         </div>
         <div class="studio-meta">
@@ -34,8 +34,11 @@
       </div>
 
       <% if (!user.has_active_plan) { %>
-        <div class="<%= user.trial_expired ? 'error' : 'notice' %>">
-          <% if (user.trial_expired) { %>
+        <div class="<%= user.has_bonus_access ? 'success' : (user.trial_expired ? 'error' : 'notice') %>">
+          <% if (user.has_bonus_access) { %>
+            Referral rewards are covering your account through <strong><%= user.formatted_access_end %></strong>.
+            <a class="text-link" href="/billing">View referral details</a>
+          <% } else if (user.trial_expired) { %>
             Your <%= trialDays %>-day free trial ended on <%= user.formatted_trial_end %>. Upgrade to continue editing.
           <% } else { %>
             Trial active. <strong><%= user.trial_days_remaining %></strong> day<%= user.trial_days_remaining === 1 ? '' : 's' %> left.
@@ -55,6 +58,35 @@
       <% if (info) { %>
         <div class="success"><%= info %></div>
       <% } %>
+
+      <div class="card subtle-card referral-card">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Referral program</p>
+            <h2>Earn free months</h2>
+          </div>
+          <a class="text-link" href="/billing">Open billing</a>
+        </div>
+        <div class="billing-status-list">
+          <div class="status-row">
+            <span>Referral code</span>
+            <strong><%= user.referral_code %></strong>
+          </div>
+          <div class="status-row">
+            <span>Share link</span>
+            <strong class="billing-url"><%= user.referral_share_url %></strong>
+          </div>
+          <div class="status-row">
+            <span>Successful referrals</span>
+            <strong><%= user.successful_referrals_count %></strong>
+          </div>
+          <div class="status-row">
+            <span>Free months earned</span>
+            <strong><%= user.referral_bonus_months_earned %> / <%= referralBonusMonthsMax %></strong>
+          </div>
+        </div>
+        <p class="field-hint">Each new signup through your referral link adds 1 free month of service, up to 12 months total.</p>
+      </div>
 
       <datalist id="link-label-suggestions">
         <% socialLinkSuggestions.forEach(option => { %>
@@ -118,6 +150,44 @@
           <% }) %>
         </select>
 
+        <div class="form-grid two">
+          <div>
+            <label>Profile photo or short video</label>
+            <input name="profile_media" type="file" accept="image/*,video/*" />
+            <p class="field-hint">Use an image or a muted loop-friendly video to make the top of the page feel alive.</p>
+
+            <% if (values.profile_media) { %>
+              <div class="asset-preview-card">
+                <% if (values.profile_media_type === "video") { %>
+                  <video class="asset-preview-media" src="<%= values.profile_media %>" muted loop playsinline controls></video>
+                <% } else { %>
+                  <img class="asset-preview-media" src="<%= values.profile_media %>" alt="Current profile media" />
+                <% } %>
+              </div>
+              <label class="checkbox-row">
+                <input type="checkbox" name="remove_profile_media" value="1" />
+                Remove current profile media
+              </label>
+            <% } %>
+          </div>
+
+          <div>
+            <label>Background image</label>
+            <input name="background_image" type="file" accept="image/*" />
+            <p class="field-hint">Optional full-page backdrop behind the card.</p>
+
+            <% if (values.background_image) { %>
+              <div class="asset-preview-card">
+                <img class="asset-preview-media asset-preview-wide" src="<%= values.background_image %>" alt="Current background image" />
+              </div>
+              <label class="checkbox-row">
+                <input type="checkbox" name="remove_background_image" value="1" />
+                Remove current background image
+              </label>
+            <% } %>
+          </div>
+        </div>
+
         <div class="feature-toggle">
           <label class="checkbox-row">
             <input type="checkbox" name="lead_form_enabled" value="1" <%= values.lead_form_enabled ? 'checked' : '' %> />
@@ -129,31 +199,33 @@
         <label>Lead form headline</label>
         <input name="lead_form_prompt" value="<%= values.lead_form_prompt %>" placeholder="Send me a quick message" />
 
-        <label>Upload photo or logo</label>
-        <input name="profile_image" type="file" accept="image/*" />
-
-        <% if (values.profile_image) { %>
-          <img class="preview-img" src="<%= values.profile_image %>" alt="Current profile image" />
-          <label class="checkbox-row">
-            <input type="checkbox" name="remove_profile_image" value="1" />
-            Remove current image
-          </label>
-        <% } %>
-
         <div class="section-header">
           <div>
             <h2>Buttons and links</h2>
-            <p class="section-copy">Use the common social labels below, or type any custom button like Pricing, Portfolio, Menu, or Book Now.</p>
+            <p class="section-copy">Choose one of the built-in sections for every link. Social links render as icons under the profile, while the other sections show full buttons.</p>
           </div>
         </div>
 
-        <% values.links.forEach((link, index) => { %>
-          <% const suggestion = socialLinkSuggestions[index] || socialLinkSuggestions[socialLinkSuggestions.length - 1]; %>
-          <div class="link-row">
-            <input name="link_label" value="<%= link.label %>" placeholder="<%= suggestion.label %>" list="link-label-suggestions" />
-            <input name="link_url" value="<%= link.url %>" placeholder="https://<%= suggestion.placeholder %>" />
+        <div class="link-builder" data-link-builder>
+          <% values.links.forEach((link, index) => { %>
+            <% const suggestion = socialLinkSuggestions[index] || socialLinkSuggestions[socialLinkSuggestions.length - 1]; %>
+            <% const hiddenRow = index >= initialVisibleLinkRows && !link.label && !link.url; %>
+            <div class="link-row link-row-rich <%= hiddenRow ? 'is-hidden-empty' : '' %>" data-link-row>
+              <select name="link_section">
+                <% linkSectionOptions.forEach(option => { %>
+                  <option value="<%= option.value %>" <%= link.section === option.value ? 'selected' : '' %>><%= option.label %></option>
+                <% }) %>
+              </select>
+              <input name="link_label" value="<%= link.label %>" placeholder="<%= suggestion.label %>" list="link-label-suggestions" />
+              <input name="link_url" value="<%= link.url %>" placeholder="https://<%= suggestion.placeholder %>" />
+            </div>
+          <% }) %>
+
+          <div class="link-builder-tools">
+            <button class="btn btn-ghost" type="button" data-reveal-links>Show more links</button>
+            <p class="field-hint">Start with <%= initialVisibleLinkRows %> rows and reveal more as needed, up to <%= maxLinks %> links.</p>
           </div>
-        <% }) %>
+        </div>
 
         <div class="actions studio-actions">
           <button class="btn btn-secondary" type="submit" name="intent" value="save_draft">Save draft</button>
@@ -178,16 +250,27 @@
 
       <div class="studio-preview-shell">
         <div class="profile-page profile-page-embedded profile-theme-<%= preview.theme %>" style="--accent:<%= preview.accent_color %>;">
+          <% if (preview.background_image) { %>
+            <div class="profile-backdrop" style="background-image:url('<%= preview.background_image %>');"></div>
+          <% } %>
+          <div class="profile-orb orb-a"></div>
+          <div class="profile-orb orb-b"></div>
+
           <div class="profile-card">
-            <% if (preview.profile_image) { %>
-              <img class="avatar" src="<%= preview.profile_image %>" alt="<%= preview.business_name %>" />
+            <% if (preview.profile_media) { %>
+              <div class="profile-media-shell">
+                <% if (preview.profile_media_type === "video") { %>
+                  <video class="avatar avatar-video" src="<%= preview.profile_media %>" muted loop autoplay playsinline></video>
+                <% } else { %>
+                  <img class="avatar" src="<%= preview.profile_media %>" alt="<%= preview.business_name %>" />
+                <% } %>
+              </div>
             <% } else { %>
               <div class="avatar avatar-placeholder"><span><%= (preview.business_name || 'L').charAt(0).toUpperCase() %></span></div>
             <% } %>
 
             <p class="profile-tag">Preview</p>
             <h2><%= preview.business_name %></h2>
-            <p class="bio"><%= preview.bio %></p>
 
             <% if (preview.phone) { %>
               <p class="contact"><%= preview.phone %></p>
@@ -198,12 +281,29 @@
               <p class="bio"><%= preview.bio %></p>
             </div>
 
-            <div class="profile-links">
-              <% preview.links.forEach(link => { %>
-                <div class="profile-link profile-link-static">
-                  <span><%= link.label %></span>
-                  <small>Tap</small>
-                </div>
+            <% if (preview.social_links.length > 0) { %>
+              <div class="social-strip">
+                <% preview.social_links.forEach(link => { %>
+                  <div class="social-icon social-icon-static social-icon-<%= link.platform %>" title="<%= link.label %>">
+                    <span class="social-icon-mark"><%= link.icon_text %></span>
+                  </div>
+                <% }) %>
+              </div>
+            <% } %>
+
+            <div class="section-stack">
+              <% preview.link_sections.forEach(section => { %>
+                <section class="link-section-card">
+                  <p class="profile-section-label"><%= section.label %></p>
+                  <div class="profile-links">
+                    <% section.links.forEach(link => { %>
+                      <div class="profile-link profile-link-static">
+                        <span><%= link.label %></span>
+                        <small>Open</small>
+                      </div>
+                    <% }) %>
+                  </div>
+                </section>
               <% }) %>
             </div>
 

@@ -1,20 +1,27 @@
 <%- include("partials/header") %>
 
 <div class="profile-page profile-theme-<%= order.theme %>" style="--accent:<%= order.accent_color %>;">
+  <% if (order.background_image) { %>
+    <div class="profile-backdrop" style="background-image:url('<%= order.background_image %>');"></div>
+  <% } %>
   <div class="profile-orb orb-a"></div>
   <div class="profile-orb orb-b"></div>
 
   <div class="profile-card">
-    <% if (order.profile_image) { %>
-      <img class="avatar" src="<%= order.profile_image %>" alt="<%= order.business_name %>" />
+    <% if (order.profile_media) { %>
+      <div class="profile-media-shell">
+        <% if (order.profile_media_type === "video") { %>
+          <video class="avatar avatar-video" src="<%= order.profile_media %>" muted loop autoplay playsinline controls></video>
+        <% } else { %>
+          <img class="avatar" src="<%= order.profile_media %>" alt="<%= order.business_name %>" />
+        <% } %>
+      </div>
+    <% } else { %>
+      <div class="avatar avatar-placeholder"><span><%= (order.business_name || 'L').charAt(0).toUpperCase() %></span></div>
     <% } %>
 
     <p class="profile-tag">Custom Link Page</p>
     <h1><%= order.business_name %></h1>
-
-    <% if (order.bio) { %>
-      <p class="bio"><%= order.bio %></p>
-    <% } %>
 
     <% if (order.phone) { %>
       <p class="contact"><%= order.phone %></p>
@@ -25,12 +32,29 @@
       <p class="bio"><%= order.bio || "This page is getting a bio update soon." %></p>
     </div>
 
-    <div class="profile-links">
-      <% order.links.forEach((link, index) => { %>
-        <a class="profile-link" href="/r/<%= order.id %>/<%= index %>">
-          <span><%= link.label %></span>
-          <small>Open</small>
-        </a>
+    <% if (order.social_links.length > 0) { %>
+      <div class="social-strip">
+        <% order.social_links.forEach(link => { %>
+          <a class="social-icon social-icon-<%= link.platform %>" href="<%= link.href %>" aria-label="<%= link.label %>" title="<%= link.label %>">
+            <span class="social-icon-mark"><%= link.icon_text %></span>
+          </a>
+        <% }) %>
+      </div>
+    <% } %>
+
+    <div class="section-stack">
+      <% order.link_sections.forEach(section => { %>
+        <section class="link-section-card">
+          <p class="profile-section-label"><%= section.label %></p>
+          <div class="profile-links">
+            <% section.links.forEach(link => { %>
+              <a class="profile-link" href="<%= link.href %>">
+                <span><%= link.label %></span>
+                <small>Open</small>
+              </a>
+            <% }) %>
+          </div>
+        </section>
       <% }) %>
     </div>
 

@@ -194,6 +194,42 @@
           </div>
         </div>
 
+        <div class="form-grid two">
+          <div>
+            <label>Profile photo or short video</label>
+            <input name="profile_media" type="file" accept="image/*,video/*" />
+
+            <% if (order.profile_media) { %>
+              <div class="asset-preview-card">
+                <% if (order.profile_media_type === "video") { %>
+                  <video class="asset-preview-media" src="<%= order.profile_media %>" muted loop playsinline controls></video>
+                <% } else { %>
+                  <img class="asset-preview-media" src="<%= order.profile_media %>" alt="Profile media" />
+                <% } %>
+              </div>
+              <label class="checkbox-row">
+                <input type="checkbox" name="remove_profile_media" value="1" />
+                Remove current profile media
+              </label>
+            <% } %>
+          </div>
+
+          <div>
+            <label>Background image</label>
+            <input name="background_image" type="file" accept="image/*" />
+
+            <% if (order.background_image) { %>
+              <div class="asset-preview-card">
+                <img class="asset-preview-media asset-preview-wide" src="<%= order.background_image %>" alt="Background image" />
+              </div>
+              <label class="checkbox-row">
+                <input type="checkbox" name="remove_background_image" value="1" />
+                Remove current background image
+              </label>
+            <% } %>
+          </div>
+        </div>
+
         <div class="feature-toggle">
           <label class="checkbox-row">
             <input type="checkbox" name="lead_form_enabled" value="1" <%= order.lead_form_enabled ? 'checked' : '' %> />
@@ -204,31 +240,33 @@
         <label>Lead form headline</label>
         <input name="lead_form_prompt" value="<%= order.lead_form_prompt %>" placeholder="Send me a quick message" />
 
-        <label>Replace profile image or logo</label>
-        <input name="profile_image" type="file" accept="image/*" />
-
-        <% if (order.profile_image) { %>
-          <img class="preview-img" src="<%= order.profile_image %>" alt="Profile image" />
-          <label class="checkbox-row">
-            <input type="checkbox" name="remove_profile_image" value="1" />
-            Remove current image
-          </label>
-        <% } %>
-
         <div class="section-header">
           <div>
             <h2>Buttons and links</h2>
-            <p class="section-copy">Use the suggested social labels below or enter any custom button label the customer wants.</p>
+            <p class="section-copy">Use the fixed sections only. Social links become icons; the others stay as grouped buttons.</p>
           </div>
         </div>
 
-        <% order.links.forEach((link, index) => { %>
-          <% const suggestion = socialLinkSuggestions[index] || socialLinkSuggestions[socialLinkSuggestions.length - 1]; %>
-          <div class="link-row">
-            <input name="link_label" value="<%= link.label %>" placeholder="<%= suggestion.label %>" list="link-label-suggestions" />
-            <input name="link_url" value="<%= link.url %>" placeholder="https://<%= suggestion.placeholder %>" />
+        <div class="link-builder" data-link-builder>
+          <% order.links.forEach((link, index) => { %>
+            <% const suggestion = socialLinkSuggestions[index] || socialLinkSuggestions[socialLinkSuggestions.length - 1]; %>
+            <% const hiddenRow = index >= initialVisibleLinkRows && !link.label && !link.url; %>
+            <div class="link-row link-row-rich <%= hiddenRow ? 'is-hidden-empty' : '' %>" data-link-row>
+              <select name="link_section">
+                <% linkSectionOptions.forEach(option => { %>
+                  <option value="<%= option.value %>" <%= link.section === option.value ? 'selected' : '' %>><%= option.label %></option>
+                <% }) %>
+              </select>
+              <input name="link_label" value="<%= link.label %>" placeholder="<%= suggestion.label %>" list="link-label-suggestions" />
+              <input name="link_url" value="<%= link.url %>" placeholder="https://<%= suggestion.placeholder %>" />
+            </div>
+          <% }) %>
+
+          <div class="link-builder-tools">
+            <button class="btn btn-ghost" type="button" data-reveal-links>Show more links</button>
+            <p class="field-hint">Reveal extra rows when this customer needs more links.</p>
           </div>
-        <% }) %>
+        </div>
 
         <button class="btn" type="submit">Save changes</button>
       </form>
