@@ -119,8 +119,9 @@
             <p class="field-hint">Email changes are not part of this MVP.</p>
           </div>
           <div>
-            <label>Public slug</label>
-            <input name="slug" value="<%= values.slug %>" placeholder="your-brand" />
+            <label>Public username</label>
+            <input name="slug" value="<%= values.slug %>" placeholder="your-brand" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" minlength="3" maxlength="32" autocapitalize="off" spellcheck="false" />
+            <p class="field-hint">Use 3-32 lowercase letters, numbers, or hyphens only. This becomes your page URL and must be unique.</p>
           </div>
         </div>
 

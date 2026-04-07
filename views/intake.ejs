@@ -52,8 +52,9 @@
             <input name="business_name" value="<%= values.business_name %>" required />
           </div>
           <div>
-            <label>Preferred slug</label>
-            <input name="slug" value="<%= values.slug %>" placeholder="my-brand" />
+            <label>Preferred username</label>
+            <input name="slug" value="<%= values.slug %>" placeholder="my-brand" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" minlength="3" maxlength="32" autocapitalize="off" spellcheck="false" />
+            <p class="field-hint">Use 3-32 lowercase letters, numbers, or hyphens only. If it is taken, you will need to choose another one.</p>
           </div>
         </div>
 

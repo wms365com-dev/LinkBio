@@ -143,8 +143,9 @@
             <input name="business_name" value="<%= order.business_name %>" required />
           </div>
           <div>
-            <label>Slug</label>
-            <input name="slug" value="<%= order.slug %>" required />
+            <label>Username</label>
+            <input name="slug" value="<%= order.slug %>" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" minlength="3" maxlength="32" autocapitalize="off" spellcheck="false" />
+            <p class="field-hint">Use 3-32 lowercase letters, numbers, or hyphens only. Usernames are unique across all pages.</p>
           </div>
         </div>
 

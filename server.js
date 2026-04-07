@@ -64,6 +64,27 @@ const MAX_LINKS = 20;
 const STUDIO_LINK_ROWS = MAX_LINKS;
 const PLAN_ACCESS_DAYS = Number(process.env.PLAN_ACCESS_DAYS || 30);
 const REFERRAL_BONUS_MONTHS_MAX = Number(process.env.REFERRAL_BONUS_MONTHS_MAX || 12);
+const USERNAME_MIN_LENGTH = 3;
+const USERNAME_MAX_LENGTH = 32;
+const USERNAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const RESERVED_USERNAMES = new Set([
+  "admin",
+  "api",
+  "billing",
+  "buy",
+  "health",
+  "intake",
+  "login",
+  "logout",
+  "p",
+  "public",
+  "r",
+  "ref",
+  "signup",
+  "studio",
+  "thank-you",
+  "uploads"
+]);
 
 const dataDir = fs.existsSync("/data") ? "/data" : path.join(__dirname, "data");
 const uploadDir = path.join(dataDir, "uploads");
@@ -152,6 +173,7 @@ function normalizeStore(store = {}) {
   return {
     users: Array.isArray(store.users) ? store.users : [],
     orders: Array.isArray(store.orders) ? store.orders : [],
+    usernames: Array.isArray(store.usernames) ? store.usernames : [],
     analytics_events: Array.isArray(store.analytics_events) ? store.analytics_events : [],
     leads: Array.isArray(store.leads) ? store.leads : []
   };
@@ -164,14 +186,14 @@ if (!fs.existsSync(dataFile)) {
 function readStore() {
   try {
     const raw = fs.readFileSync(dataFile, "utf8");
-    return normalizeStore(JSON.parse(raw));
+    return syncUsernameRegistry(normalizeStore(JSON.parse(raw)));
   } catch (error) {
-    return normalizeStore();
+    return syncUsernameRegistry(normalizeStore());
   }
 }
 
 function writeStore(store) {
-  fs.writeFileSync(dataFile, JSON.stringify(normalizeStore(store), null, 2));
+  fs.writeFileSync(dataFile, JSON.stringify(syncUsernameRegistry(normalizeStore(store)), null, 2));
 }
 
 function nextId(records) {
@@ -220,6 +242,88 @@ function sanitizeLeadPrompt(value) {
 
 function makeSlug(text) {
   return slugify(text || "", { lower: true, strict: true, trim: true });
+}
+
+function normalizeUsername(value) {
+  return makeSlug(String(value || "").trim());
+}
+
+function isReservedUsername(slug) {
+  return RESERVED_USERNAMES.has(String(slug || "").trim().toLowerCase());
+}
+
+function validateExplicitUsername(value) {
+  const raw = String(value || "").trim();
+  const normalized = normalizeUsername(raw);
+
+  if (!raw) {
+    return {
+      slug: null,
+      error: "Enter a username using lowercase letters, numbers, and hyphens."
+    };
+  }
+
+  if (!normalized) {
+    return {
+      slug: null,
+      error: "Usernames can only use lowercase letters, numbers, and hyphens."
+    };
+  }
+
+  if (normalized.length < USERNAME_MIN_LENGTH || normalized.length > USERNAME_MAX_LENGTH) {
+    return {
+      slug: null,
+      error: `Usernames must be ${USERNAME_MIN_LENGTH}-${USERNAME_MAX_LENGTH} characters long. Try "${normalized}".`
+    };
+  }
+
+  if (!USERNAME_PATTERN.test(normalized)) {
+    return {
+      slug: null,
+      error: "Usernames can only use lowercase letters, numbers, and single hyphens."
+    };
+  }
+
+  if (raw !== normalized) {
+    return {
+      slug: null,
+      error: `Use only lowercase letters, numbers, and hyphens in the username. Try "${normalized}".`
+    };
+  }
+
+  return {
+    slug: normalized,
+    error: null
+  };
+}
+
+function buildUsernameRegistry(orders = []) {
+  const seen = new Map();
+
+  orders.forEach((order) => {
+    const slug = normalizeUsername(order.slug);
+    if (!slug || isReservedUsername(slug) || seen.has(slug)) {
+      return;
+    }
+
+    seen.set(slug, {
+      slug,
+      order_id: order.id || null,
+      owner_user_id: order.owner_user_id || null,
+      business_name: order.business_name || "",
+      updated_at: order.created_at || new Date().toISOString()
+    });
+  });
+
+  return Array.from(seen.values()).sort((left, right) => left.slug.localeCompare(right.slug));
+}
+
+function syncUsernameRegistry(store) {
+  const normalized = normalizeStore(store);
+  return {
+    ...normalized,
+    usernames: buildUsernameRegistry(normalized.orders)
+  };
 }
 
 function normalizeEmail(value) {
@@ -885,7 +989,88 @@ function getOrderById(id) {
 }
 
 function getOrderBySlug(slug) {
-  return getOrders().find((order) => order.slug === slug) || null;
+  const normalized = normalizeUsername(slug);
+  return getOrders().find((order) => order.slug === normalized) || null;
+}
+
+function getUsernameClaims() {
+  return readStore().usernames;
+}
+
+function getUsernameClaim(slug) {
+  const normalized = normalizeUsername(slug);
+  if (!normalized) {
+    return null;
+  }
+
+  return getUsernameClaims().find((claim) => claim.slug === normalized) || null;
+}
+
+function isUsernameAvailable(slug, orderIdToIgnore = null) {
+  const normalized = normalizeUsername(slug);
+  if (!normalized || isReservedUsername(normalized)) {
+    return false;
+  }
+
+  const existing = getUsernameClaim(normalized);
+  return !existing || String(existing.order_id || "") === String(orderIdToIgnore || "");
+}
+
+function resolveSlugSelection(requestedValue, fallbackValue, options = {}) {
+  const requestedSlug = String(requestedValue || "").trim();
+  const fallbackSlug = normalizeUsername(fallbackValue || "");
+  const currentOrderId = options.currentOrderId || null;
+  const explicit = Boolean(requestedSlug);
+
+  if (explicit) {
+    const explicitValidation = validateExplicitUsername(requestedSlug);
+    if (explicitValidation.error) {
+      return explicitValidation;
+    }
+
+    if (isReservedUsername(explicitValidation.slug)) {
+      return {
+        slug: null,
+        error: `The username "${explicitValidation.slug}" is reserved. Please choose another one.`
+      };
+    }
+
+    if (!isUsernameAvailable(explicitValidation.slug, currentOrderId)) {
+      return {
+        slug: null,
+        error: `The username "${explicitValidation.slug}" is already taken. Please choose another one.`
+      };
+    }
+
+    return { slug: explicitValidation.slug, error: null };
+  }
+
+  const normalizedRequestedSlug = normalizeUsername(fallbackSlug);
+  if (!normalizedRequestedSlug) {
+    return {
+      slug: null,
+      error: "Enter a valid username using lowercase letters, numbers, and hyphens."
+    };
+  }
+
+  if (normalizedRequestedSlug.length < USERNAME_MIN_LENGTH) {
+    return {
+      slug: ensureUniqueSlug(`page-${Date.now()}`, currentOrderId),
+      error: null
+    };
+  }
+
+  if (normalizedRequestedSlug.length > USERNAME_MAX_LENGTH) {
+    return {
+      slug: ensureUniqueSlug(normalizedRequestedSlug.slice(0, USERNAME_MAX_LENGTH), currentOrderId),
+      error: null
+    };
+  }
+
+  return {
+    slug: ensureUniqueSlug(normalizedRequestedSlug, currentOrderId),
+    error: null
+  };
 }
 
 function getOrderByStripeSessionId(sessionId) {
@@ -905,7 +1090,7 @@ function createOrder(input) {
     email: input.email || "",
     full_name: input.full_name || "",
     business_name: input.business_name || "",
-    slug: input.slug,
+    slug: normalizeUsername(input.slug),
     bio: input.bio || "",
     phone: input.phone || "",
     lead_form_enabled: input.lead_form_enabled ? 1 : 0,
@@ -945,6 +1130,7 @@ function updateOrder(id, updates) {
   const nextOrder = {
     ...existingOrder,
     ...updates,
+    slug: normalizeUsername(updates.slug ?? existingOrder.slug),
     profile_media: nextProfileMedia,
     profile_media_type: nextProfileMediaType,
     profile_image: nextProfileMediaType === "image" ? nextProfileMedia : null,
@@ -959,16 +1145,21 @@ function updateOrder(id, updates) {
 }
 
 function ensureUniqueSlug(baseSlug, orderIdToIgnore) {
-  const rootSlug = baseSlug || `page-${Date.now()}`;
+  const fallbackRoot = normalizeUsername(`page-${Date.now()}`);
+  const rootSlug = (normalizeUsername(baseSlug) || fallbackRoot)
+    .slice(0, USERNAME_MAX_LENGTH)
+    .replace(/-+$/g, "") || fallbackRoot;
   let candidate = rootSlug;
   let counter = 2;
 
   while (true) {
-    const existing = getOrderBySlug(candidate);
-    if (!existing || String(existing.id) === String(orderIdToIgnore || "")) {
+    if (!isReservedUsername(candidate) && isUsernameAvailable(candidate, orderIdToIgnore)) {
       return candidate;
     }
-    candidate = `${rootSlug}-${counter++}`;
+
+    const suffix = `-${counter++}`;
+    const base = rootSlug.slice(0, Math.max(USERNAME_MIN_LENGTH, USERNAME_MAX_LENGTH - suffix.length)).replace(/-+$/g, "") || fallbackRoot;
+    candidate = `${base}${suffix}`;
   }
 }
 
@@ -1562,8 +1753,21 @@ app.post("/studio", requireCustomer, assetUpload, (req, res) => {
     });
   }
 
-  const slugBase = makeSlug(values.slug || values.business_name || values.full_name) || order.slug;
-  const slug = ensureUniqueSlug(slugBase, order.id);
+  const slugSelection = resolveSlugSelection(values.slug, values.business_name || values.full_name || order.slug, {
+    currentOrderId: order.id
+  });
+  if (slugSelection.error) {
+    return renderStudio(res, customer, order, {
+      statusCode: 400,
+      error: slugSelection.error,
+      values: req.body,
+      preview_profile_media: uploadedProfileMedia?.url,
+      preview_profile_media_type: uploadedProfileMedia?.type,
+      preview_background_image: uploadedBackgroundImage?.url
+    });
+  }
+
+  const slug = slugSelection.slug;
   const profileMedia = req.body.remove_profile_media === "1"
     ? null
     : (uploadedProfileMedia?.url || order.profile_media || order.profile_image || null);
@@ -1686,8 +1890,18 @@ app.post("/intake", assetUpload, async (req, res) => {
 
   const verification = await verifyCheckoutSession(sessionId);
   const paymentStatus = sessionId ? (verification.paid ? "paid" : "unpaid") : "manual";
-  const slugBase = makeSlug(values.slug || values.business_name || values.full_name) || `page-${Date.now()}`;
-  const slug = ensureUniqueSlug(slugBase);
+  const slugSelection = resolveSlugSelection(values.slug, values.business_name || values.full_name || `page-${Date.now()}`);
+  if (slugSelection.error) {
+    return renderIntake(res, {
+      statusCode: 400,
+      error: slugSelection.error,
+      paid: Boolean(sessionId ? verification?.paid : false),
+      sessionId,
+      values: req.body
+    });
+  }
+
+  const slug = slugSelection.slug;
   const profileMedia = uploadedProfileMedia?.url || null;
   const profileMediaType = uploadedProfileMedia?.type || null;
   const backgroundImage = uploadedBackgroundImage?.url || null;
@@ -1833,8 +2047,18 @@ app.post("/admin/order/:id/update", requireAdmin, assetUpload, (req, res) => {
     });
   }
 
-  const slugBase = makeSlug(values.slug || values.business_name || values.full_name) || order.slug;
-  const slug = ensureUniqueSlug(slugBase, order.id);
+  const slugSelection = resolveSlugSelection(values.slug, values.business_name || values.full_name || order.slug, {
+    currentOrderId: order.id
+  });
+  if (slugSelection.error) {
+    return renderAdminOrder(res, order, {
+      statusCode: 400,
+      error: slugSelection.error,
+      values: req.body
+    });
+  }
+
+  const slug = slugSelection.slug;
   const profileMedia = req.body.remove_profile_media === "1"
     ? null
     : (uploadedProfileMedia?.url || order.profile_media || order.profile_image || null);
