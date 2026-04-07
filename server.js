@@ -138,8 +138,19 @@ app.use(session({
 
 app.use((req, res, next) => {
   const hostname = String(req.hostname || "").toLowerCase();
-  if (hostname === "myurlc.com") {
-    return res.redirect(301, `https://${CANONICAL_PUBLIC_HOST}${req.originalUrl}`);
+  const forwardedProto = String(req.get("x-forwarded-proto") || "")
+    .split(",")[0]
+    .trim()
+    .toLowerCase();
+  const isSecureRequest = req.secure || forwardedProto === "https";
+
+  if (hostname === "myurlc.com" || hostname === CANONICAL_PUBLIC_HOST) {
+    const targetHost = hostname === "myurlc.com" ? CANONICAL_PUBLIC_HOST : hostname;
+    if (!isSecureRequest || hostname !== targetHost) {
+      return res.redirect(301, `https://${targetHost}${req.originalUrl}`);
+    }
+
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
   }
 
   return next();
