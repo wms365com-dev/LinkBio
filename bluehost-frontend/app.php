@@ -14,18 +14,21 @@ myurlc_render_topbar();
   <main>
     <section class="app-shell">
       <p class="eyebrow">Your dashboard</p>
-      <h1 class="page-title">Keep the public site on Bluehost and the account tools on Railway.</h1>
-      <p class="section-copy">
-        This page pulls your live account data from Railway. The public site stays here, while deeper editor routes can stay on the backend until you are ready to move them too.
-      </p>
+      <h1 class="page-title">Finish your page and go live.</h1>
+      <p class="section-copy">This is your control center for publishing, sharing, and tracking your page.</p>
 
       <div class="message message-info" id="app-message">Loading your account...</div>
 
       <div class="app-grid" id="app-grid" hidden>
         <section class="card">
+          <div class="status-hero" id="status-hero"></div>
           <h2 id="dashboard-name">Your page</h2>
           <div class="key-value" id="account-summary"></div>
           <div class="button-row" id="primary-actions"></div>
+        </section>
+
+        <section class="card">
+          <div class="next-step-card" id="next-step-card"></div>
         </section>
 
         <section class="card">
@@ -46,9 +49,20 @@ myurlc_render_topbar();
 
         document.getElementById('dashboard-name').textContent = me.page.business_name || me.customer.business_name || 'Your page';
 
+        const isPublished = Boolean(me.page.is_published);
+        const pageStatus = isPublished ? 'Published' : 'Draft';
+        const publicPageValue = isPublished
+          ? me.page.public_url
+          : 'Not live yet. Publish it from the studio first.';
+        const statusHero = document.getElementById('status-hero');
+        statusHero.innerHTML = isPublished
+          ? '<span class="status-pill status-pill-live">Live now</span><p>Your page is public and ready to share.</p>'
+          : '<span class="status-pill status-pill-draft">Draft</span><p>Your page is saved. Open the studio and publish it when you are ready.</p>';
+
         const summary = document.getElementById('account-summary');
         summary.innerHTML = [
-          ['Public page', me.page.public_url],
+          ['Page status', pageStatus],
+          ['Public page', publicPageValue],
           ['Username', '@' + me.page.slug],
           ['Billing status', me.customer.billing_status],
           ['Referral link', me.customer.referral_share_url || 'Not ready yet'],
@@ -58,19 +72,30 @@ myurlc_render_topbar();
         }).join('');
 
         const actions = document.getElementById('primary-actions');
-        actions.innerHTML = [
-          ['Open live page', me.page.public_url, 'btn btn-primary'],
+        const actionsList = [
+          [isPublished ? 'Open live page' : 'Open studio to publish', isPublished ? me.page.public_url : me.manage.studio_url, 'btn btn-primary'],
           ['Open studio', me.manage.studio_url, 'btn btn-secondary'],
           ['Billing', me.manage.billing_url, 'btn btn-secondary'],
           ['Export JSON', me.manage.export_url, 'btn btn-secondary'],
           ['Support', me.manage.support_url, 'btn btn-secondary'],
           ['Log out', '#', 'btn btn-link', me.manage.logout_url]
-        ].map(function (item) {
+        ];
+
+        if (isPublished) {
+          actionsList.splice(1, 0, ['Copy live URL', me.page.public_url, 'btn btn-secondary']);
+        }
+
+        actions.innerHTML = actionsList.map(function (item) {
           if (item[3]) {
             return '<button class="' + item[2] + '" type="button" data-logout-url="' + item[3] + '">' + item[0] + '</button>';
           }
           return '<a class="' + item[2] + '" href="' + item[1] + '">' + item[0] + '</a>';
         }).join('');
+
+        const nextStepCard = document.getElementById('next-step-card');
+        nextStepCard.innerHTML = isPublished
+          ? '<p class="eyebrow">Next best move</p><h2>Share your live page.</h2><p class="section-copy">Post your public URL, use your referral link, and start collecting real traffic.</p>'
+          : '<p class="eyebrow">Next best move</p><h2>Publish your page.</h2><p class="section-copy">Open the studio, add your links, then hit publish so your public URL starts working.</p>';
 
         const stats = analytics.report.summary_30d;
         document.getElementById('analytics-grid').innerHTML = [
@@ -82,7 +107,13 @@ myurlc_render_topbar();
           return '<div class="stat-item"><strong>' + row[1] + '</strong><span>' + row[0] + '</span></div>';
         }).join('');
 
-        window.myurlcFrontend.setMessage(message, 'success', 'Dashboard connected to Railway.');
+        window.myurlcFrontend.setMessage(
+          message,
+          isPublished ? 'success' : 'info',
+          isPublished
+            ? 'Your page is live.'
+            : 'Your page is saved as a draft. Open the studio and publish it to make the public URL work.'
+        );
         grid.hidden = false;
       } catch (error) {
         window.myurlcFrontend.setMessage(message, 'error', error.message + ' Log in again if your session expired.');

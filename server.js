@@ -2782,9 +2782,11 @@ function buildAdminOrderValues(row, body = {}) {
 }
 
 function buildCustomerValues(body = {}) {
+  const fullName = String(body.full_name || body.business_name || "").trim();
+  const businessName = String(body.business_name || body.full_name || "").trim();
   return {
-    full_name: String(body.full_name || "").trim(),
-    business_name: String(body.business_name || "").trim(),
+    full_name: fullName,
+    business_name: businessName,
     email: normalizeEmail(body.email),
     referral_code: sanitizeReferralCode(body.referral_code)
   };
@@ -3169,6 +3171,11 @@ function buildCustomerManageUrls() {
     export_url: appAbsoluteUrl("/api/customer/export"),
     logout_url: appAbsoluteUrl("/api/auth/logout")
   };
+}
+
+function buildCustomerEntryRedirect(user, row = null) {
+  const order = toOrderViewModel(row || ensureCustomerPage(user));
+  return order && order.is_published ? absoluteUrl("/app") : appAbsoluteUrl("/studio");
 }
 
 function respondApiError(res, statusCode, message, extra = {}) {
@@ -3717,10 +3724,11 @@ app.post("/api/auth/signup", requireGuestApi, (req, res) => {
 
   ensureCustomerPage(user);
   req.session.customerUserId = user.id;
+  const nextRedirectUrl = buildCustomerEntryRedirect(user);
 
   return res.status(201).json({
     ok: true,
-    redirect_url: absoluteUrl("/app"),
+    redirect_url: nextRedirectUrl,
     ...buildCustomerApiPayload(user)
   });
 });
@@ -3737,9 +3745,10 @@ app.post("/api/auth/login", requireGuestApi, (req, res) => {
   }
 
   req.session.customerUserId = user.id;
+  const nextRedirectUrl = buildCustomerEntryRedirect(user);
   return res.json({
     ok: true,
-    redirect_url: absoluteUrl("/app"),
+    redirect_url: nextRedirectUrl,
     ...buildCustomerApiPayload(user)
   });
 });
@@ -3803,7 +3812,7 @@ app.post("/api/auth/reset-password", (req, res) => {
   return res.json({
     ok: true,
     message: "Password updated. You are signed in now.",
-    redirect_url: absoluteUrl("/app")
+    redirect_url: buildCustomerEntryRedirect(result.user)
   });
 });
 

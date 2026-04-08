@@ -54,9 +54,9 @@ myurlc_render_head(
   <main class="profile-page" data-track-view-url="<?= myurlc_html((string) $page['track_view_url']) ?>"<?= $backgroundStyle ? ' style="' . $backgroundStyle . '"' : '' ?>>
     <div class="profile-shell">
       <div class="profile-topbar">
-        <a class="icon-button" href="/" aria-label="Back home">MY</a>
+        <a class="icon-button" href="/" aria-label="Back home"><?= myurlc_icon_markup('home', 'ui-icon ui-icon-topbar') ?></a>
         <div class="profile-top-actions">
-          <a class="icon-button" href="<?= myurlc_html((string) $page['subscribe_url']) ?>" aria-label="Subscribe">+</a>
+          <a class="icon-button" href="<?= myurlc_html((string) $page['subscribe_url']) ?>" aria-label="Subscribe"><?= myurlc_icon_markup('plus', 'ui-icon ui-icon-topbar') ?></a>
           <button
             class="icon-button"
             type="button"
@@ -64,7 +64,7 @@ myurlc_render_head(
             data-share-url="<?= myurlc_html((string) $page['public_url']) ?>"
             data-share-title="<?= myurlc_html((string) $page['visible_name']) ?>"
             data-share-text="Check out <?= myurlc_html((string) $page['visible_name']) ?> on myurlc.com"
-          >Share</button>
+          ><?= myurlc_icon_markup('share', 'ui-icon ui-icon-topbar') ?></button>
         </div>
       </div>
 
@@ -90,10 +90,10 @@ myurlc_render_head(
               <?php foreach (($section['links'] ?? []) as $link): ?>
                 <a class="profile-link" href="<?= myurlc_html((string) $link['href']) ?>">
                   <span class="profile-link-main">
-                    <span class="badge"><?= myurlc_html((string) ($link['icon_text'] ?? myurlc_platform_badge((string) ($link['platform'] ?? 'custom')))) ?></span>
+                    <span class="badge badge-icon"><?= myurlc_icon_markup(myurlc_platform_icon_name((string) ($link['platform'] ?? 'custom')), 'ui-icon ui-icon-link') ?></span>
                     <span><?= myurlc_html((string) $link['label']) ?></span>
                   </span>
-                  <span>&gt;</span>
+                  <span class="profile-link-arrow"><?= myurlc_icon_markup('chevron-right', 'ui-icon ui-icon-arrow') ?></span>
                 </a>
               <?php endforeach; ?>
             </section>
@@ -117,10 +117,16 @@ myurlc_render_head(
         <?php if (!empty($page['contact_actions']) || !empty($page['social_links'])): ?>
           <div class="social-strip">
             <?php foreach (($page['contact_actions'] ?? []) as $action): ?>
-              <a class="social-chip" href="<?= myurlc_html((string) $action['href']) ?>"><?= myurlc_html(myurlc_platform_badge((string) $action['platform'])) ?> <span><?= myurlc_html((string) $action['label']) ?></span></a>
+              <a class="social-chip" href="<?= myurlc_html((string) $action['href']) ?>">
+                <?= myurlc_icon_markup(myurlc_platform_icon_name((string) ($action['platform'] ?? 'custom')), 'ui-icon ui-icon-chip') ?>
+                <span><?= myurlc_html((string) $action['label']) ?></span>
+              </a>
             <?php endforeach; ?>
             <?php foreach (($page['social_links'] ?? []) as $link): ?>
-              <a class="social-chip" href="<?= myurlc_html((string) $link['href']) ?>"><?= myurlc_html((string) ($link['icon_text'] ?? myurlc_platform_badge((string) ($link['platform'] ?? 'custom')))) ?> <span><?= myurlc_html((string) $link['label']) ?></span></a>
+              <a class="social-chip" href="<?= myurlc_html((string) $link['href']) ?>">
+                <?= myurlc_icon_markup(myurlc_platform_icon_name((string) ($link['platform'] ?? 'custom')), 'ui-icon ui-icon-chip') ?>
+                <span><?= myurlc_html((string) $link['label']) ?></span>
+              </a>
             <?php endforeach; ?>
           </div>
         <?php endif; ?>
