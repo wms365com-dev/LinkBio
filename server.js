@@ -8,12 +8,14 @@ const session = require("express-session");
 const multer = require("multer");
 const methodOverride = require("method-override");
 const Stripe = require("stripe");
+const nodemailer = require("nodemailer");
 const { Pool } = require("pg");
 const slugify = require("slugify");
 
 const app = express();
 
 const PORT = Number(process.env.PORT || 3000);
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const CANONICAL_PUBLIC_HOST = "www.myurlc.com";
 const SITE_NAME = "myurlc.com";
 const DEFAULT_META_DESCRIPTION = "Create a free link in bio page for your brand, business, or creator profile on myurlc.com. Publish links, collect leads, and grow organically.";
@@ -32,7 +34,14 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || "";
 const OFFER_PRICE_DISPLAY = process.env.OFFER_PRICE_DISPLAY || "$1";
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "info@myurlc.com";
+const SMTP_HOST = String(process.env.SMTP_HOST || "").trim();
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_SECURE = ["1", "true", "yes", "on"].includes(String(process.env.SMTP_SECURE || "").trim().toLowerCase());
+const SMTP_USER = String(process.env.SMTP_USER || "").trim();
+const SMTP_PASSWORD = String(process.env.SMTP_PASSWORD || "").trim();
+const SMTP_FROM = String(process.env.SMTP_FROM || SUPPORT_EMAIL).trim();
 const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 7);
+const PASSWORD_RESET_TOKEN_TTL_MINUTES = Number(process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES || 60);
 const PLAN_NAME = process.env.PLAN_NAME || "myurlc.com Pro";
 const PLAN_PRICE_DISPLAY = process.env.PLAN_PRICE_DISPLAY || "$9/month";
 const BILLING_PRICE_ID = process.env.BILLING_PRICE_ID || STRIPE_PRICE_ID;
@@ -51,6 +60,7 @@ const CORS_ALLOWED_ORIGINS = buildAllowedOrigins(process.env.CORS_ALLOWED_ORIGIN
 
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
 const dbPool = DATABASE_URL ? new Pool(buildDatabaseConnectionOptions()) : null;
+const smtpTransport = createMailTransport();
 
 const THEME_OPTIONS = [
   { value: "midnight", label: "Midnight Glass" },
@@ -136,7 +146,7 @@ app.use(methodOverride("_method"));
 app.use("/public", express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(uploadDir));
 
-if (process.env.NODE_ENV === "production") {
+if (IS_PRODUCTION) {
   app.set("trust proxy", 1);
 }
 
@@ -169,7 +179,7 @@ app.use(session({
   cookie: {
     maxAge: 1000 * 60 * 60 * 12,
     sameSite: SESSION_COOKIE_SAMESITE,
-    secure: process.env.NODE_ENV === "production",
+    secure: IS_PRODUCTION,
     ...(SESSION_COOKIE_DOMAIN ? { domain: SESSION_COOKIE_DOMAIN } : {})
   }
 }));
@@ -258,7 +268,8 @@ function normalizeStore(store = {}) {
     usernames: Array.isArray(store.usernames) ? store.usernames : [],
     analytics_events: Array.isArray(store.analytics_events) ? store.analytics_events : [],
     leads: Array.isArray(store.leads) ? store.leads : [],
-    support_tickets: Array.isArray(store.support_tickets) ? store.support_tickets : []
+    support_tickets: Array.isArray(store.support_tickets) ? store.support_tickets : [],
+    password_reset_tokens: Array.isArray(store.password_reset_tokens) ? store.password_reset_tokens : []
   };
 }
 
@@ -519,6 +530,27 @@ function normalizeCookieDomain(value) {
   }
 
   return trimmed.replace(/^\./, "");
+}
+
+function createMailTransport() {
+  if (!SMTP_HOST || !SMTP_FROM) {
+    return null;
+  }
+
+  const transportOptions = {
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_SECURE
+  };
+
+  if (SMTP_USER || SMTP_PASSWORD) {
+    transportOptions.auth = {
+      user: SMTP_USER,
+      pass: SMTP_PASSWORD
+    };
+  }
+
+  return nodemailer.createTransport(transportOptions);
 }
 
 function buildAllowedOrigins(rawValue, seeds = []) {
@@ -874,10 +906,40 @@ function syncReferralCodes(store) {
 }
 
 function syncStore(store) {
-  const normalized = syncFoundingMembers(syncReferralCodes(normalizeStore(store)));
+  const normalized = syncPasswordResetTokens(syncFoundingMembers(syncReferralCodes(normalizeStore(store))));
   return {
     ...normalized,
     usernames: buildUsernameRegistry(normalized.orders)
+  };
+}
+
+function syncPasswordResetTokens(store) {
+  const normalized = normalizeStore(store);
+  const retentionFloor = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const passwordResetTokens = normalized.password_reset_tokens
+    .map((token) => ({
+      id: Number(token.id) || 0,
+      user_id: token.user_id || null,
+      email: normalizeEmail(token.email),
+      token_hash: String(token.token_hash || "").trim(),
+      created_at: token.created_at || null,
+      expires_at: token.expires_at || null,
+      used_at: token.used_at || null,
+      requested_ip: String(token.requested_ip || "").trim().slice(0, 120),
+      requested_user_agent: String(token.requested_user_agent || "").trim().slice(0, 500)
+    }))
+    .filter((token) => {
+      if (!token.id || !token.user_id || !token.email || !token.token_hash) {
+        return false;
+      }
+
+      const activeCutoff = parseDateValue(token.used_at || token.expires_at || token.created_at);
+      return activeCutoff ? activeCutoff.getTime() >= retentionFloor : false;
+    });
+
+  return {
+    ...normalized,
+    password_reset_tokens: passwordResetTokens
   };
 }
 
@@ -959,6 +1021,15 @@ function getFoundingOfferStats() {
 
 function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function parseDateValue(value) {
@@ -1123,6 +1194,268 @@ function verifyPassword(password, storedHash) {
   } catch (error) {
     return false;
   }
+}
+
+function hashToken(value) {
+  return crypto.createHash("sha256").update(String(value || "")).digest("hex");
+}
+
+function maskEmail(value) {
+  const email = normalizeEmail(value);
+  const [localPart = "", domainPart = ""] = email.split("@");
+  if (!localPart || !domainPart) {
+    return "";
+  }
+
+  const domainChunks = domainPart.split(".");
+  const domainName = domainChunks.shift() || "";
+  const domainSuffix = domainChunks.length ? `.${domainChunks.join(".")}` : "";
+  const visibleLocal = localPart.length <= 2 ? localPart.slice(0, 1) : localPart.slice(0, 2);
+  const visibleDomain = domainName.length <= 2 ? domainName.slice(0, 1) : domainName.slice(0, 2);
+
+  return `${visibleLocal}${"*".repeat(Math.max(localPart.length - visibleLocal.length, 1))}@${visibleDomain}${"*".repeat(Math.max(domainName.length - visibleDomain.length, 1))}${domainSuffix}`;
+}
+
+function listPasswordResetTokens() {
+  return readStore().password_reset_tokens;
+}
+
+function getActivePasswordResetRecord(rawToken) {
+  const tokenHash = hashToken(rawToken);
+  if (!tokenHash) {
+    return null;
+  }
+
+  const now = Date.now();
+  return listPasswordResetTokens().find((record) => {
+    const expiresAt = parseDateValue(record.expires_at);
+    return record.token_hash === tokenHash
+      && !record.used_at
+      && expiresAt
+      && expiresAt.getTime() >= now;
+  }) || null;
+}
+
+function invalidatePasswordResetTokensForUser(store, userId, usedAt = new Date().toISOString()) {
+  if (!userId) {
+    return store;
+  }
+
+  return {
+    ...store,
+    password_reset_tokens: store.password_reset_tokens.map((record) => {
+      if (String(record.user_id || "") !== String(userId) || record.used_at) {
+        return record;
+      }
+
+      return {
+        ...record,
+        used_at: usedAt
+      };
+    })
+  };
+}
+
+function createPasswordResetRecord(user, requestMeta = {}) {
+  if (!user) {
+    return null;
+  }
+
+  const store = readStore();
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const now = new Date();
+  const nextStore = invalidatePasswordResetTokensForUser(store, user.id, now.toISOString());
+  const record = {
+    id: nextId(nextStore.password_reset_tokens),
+    user_id: user.id,
+    email: normalizeEmail(user.email),
+    token_hash: hashToken(rawToken),
+    created_at: now.toISOString(),
+    expires_at: new Date(now.getTime() + PASSWORD_RESET_TOKEN_TTL_MINUTES * 60 * 1000).toISOString(),
+    used_at: null,
+    requested_ip: String(requestMeta.ip || "").trim().slice(0, 120),
+    requested_user_agent: String(requestMeta.userAgent || "").trim().slice(0, 500)
+  };
+
+  nextStore.password_reset_tokens.push(record);
+  writeStore(nextStore);
+
+  return {
+    record,
+    rawToken,
+    resetUrl: absoluteUrl(`/reset-password?token=${encodeURIComponent(rawToken)}`)
+  };
+}
+
+function consumePasswordReset(rawToken, nextPassword) {
+  const activeRecord = getActivePasswordResetRecord(rawToken);
+  if (!activeRecord) {
+    return {
+      ok: false,
+      error: "That reset link is invalid or expired. Request a new one."
+    };
+  }
+
+  const user = getUserById(activeRecord.user_id);
+  if (!user) {
+    return {
+      ok: false,
+      error: "That reset link is no longer available. Request a new one."
+    };
+  }
+
+  const store = readStore();
+  const usedAt = new Date().toISOString();
+  const userIndex = store.users.findIndex((candidate) => String(candidate.id) === String(user.id));
+  if (userIndex === -1) {
+    return {
+      ok: false,
+      error: "That reset link is no longer available. Request a new one."
+    };
+  }
+
+  store.users[userIndex] = {
+    ...store.users[userIndex],
+    password_hash: hashPassword(nextPassword),
+    password_reset_at: usedAt
+  };
+
+  store.password_reset_tokens = store.password_reset_tokens.map((record) => {
+    if (String(record.user_id || "") !== String(user.id) || record.used_at) {
+      return record;
+    }
+
+    return {
+      ...record,
+      used_at: usedAt
+    };
+  });
+
+  writeStore(store);
+
+  return {
+    ok: true,
+    user: toCustomerViewModel(getUserById(user.id))
+  };
+}
+
+function buildPasswordResetSupportMessage(user, resetUrl, requestMeta = {}) {
+  const parts = [
+    "Password reset email could not be sent automatically.",
+    `User: ${user.business_name || user.name || "Unknown"} <${user.email}>`,
+    `Reset link: ${resetUrl}`,
+    `Requested at: ${new Date().toISOString()}`
+  ];
+
+  if (requestMeta.ip) {
+    parts.push(`Requester IP: ${requestMeta.ip}`);
+  }
+
+  if (requestMeta.userAgent) {
+    parts.push(`User agent: ${requestMeta.userAgent}`);
+  }
+
+  parts.push("Treat this link as sensitive. It should only be shared with the account owner.");
+  return parts.join("\n");
+}
+
+function buildPasswordResetEmail(user, resetUrl) {
+  const visibleName = user.business_name || user.name || "there";
+  const subject = `Reset your ${SITE_NAME} password`;
+  const text = [
+    `Hi ${visibleName},`,
+    "",
+    "We received a request to reset the password for your myurlc.com account.",
+    `Use this secure link to choose a new password: ${resetUrl}`,
+    "",
+    `This link expires in ${PASSWORD_RESET_TOKEN_TTL_MINUTES} minutes.`,
+    `If you did not request this, you can ignore this email or contact ${SUPPORT_EMAIL}.`
+  ].join("\n");
+  const html = [
+    `<p>Hi ${escapeHtml(visibleName)},</p>`,
+    "<p>We received a request to reset the password for your myurlc.com account.</p>",
+    `<p><a href="${escapeHtml(resetUrl)}">Reset your password</a></p>`,
+    `<p>This link expires in ${PASSWORD_RESET_TOKEN_TTL_MINUTES} minutes.</p>`,
+    `<p>If you did not request this, you can ignore this email or contact <a href="mailto:${escapeHtml(SUPPORT_EMAIL)}">${escapeHtml(SUPPORT_EMAIL)}</a>.</p>`
+  ].join("");
+
+  return { subject, text, html };
+}
+
+async function sendTransactionalEmail(options) {
+  if (!smtpTransport) {
+    return {
+      ok: false,
+      skipped: true,
+      error: "SMTP is not configured."
+    };
+  }
+
+  try {
+    await smtpTransport.sendMail({
+      from: SMTP_FROM,
+      to: options.to,
+      subject: options.subject,
+      text: options.text,
+      html: options.html,
+      replyTo: SUPPORT_EMAIL
+    });
+
+    return { ok: true };
+  } catch (error) {
+    console.error("Transactional email send failed:", error.message);
+    return {
+      ok: false,
+      error: error.message
+    };
+  }
+}
+
+async function requestPasswordReset(email, requestMeta = {}) {
+  const normalizedEmail = normalizeEmail(email);
+  const genericMessage = `If that email is in our system, we sent reset instructions. If nothing arrives soon, contact ${SUPPORT_EMAIL}.`;
+  if (!normalizedEmail) {
+    return {
+      ok: true,
+      message: genericMessage,
+      debug_reset_url: ""
+    };
+  }
+
+  const user = getUserByEmail(normalizedEmail);
+  if (!user) {
+    return {
+      ok: true,
+      message: genericMessage,
+      debug_reset_url: ""
+    };
+  }
+
+  const reset = createPasswordResetRecord(user, requestMeta);
+  const emailPayload = buildPasswordResetEmail(user, reset.resetUrl);
+  const delivery = await sendTransactionalEmail({
+    to: user.email,
+    ...emailPayload
+  });
+
+  if (!delivery.ok) {
+    createSupportTicket({
+      user_id: user.id,
+      name: user.name || user.business_name || "Password reset",
+      email: user.email,
+      category: "help",
+      subject: "Manual password reset follow-up needed",
+      message: buildPasswordResetSupportMessage(user, reset.resetUrl, requestMeta),
+      page_url: absoluteUrl("/support")
+    });
+  }
+
+  return {
+    ok: true,
+    message: genericMessage,
+    debug_reset_url: !IS_PRODUCTION ? reset.resetUrl : "",
+    email_delivery: delivery.ok ? "email" : "support"
+  };
 }
 
 function padLinks(links, minRows = STUDIO_LINK_ROWS) {
@@ -2644,6 +2977,7 @@ function renderAuthPage(res, view, options = {}) {
     info: options.info || null,
     values: options.values || {},
     founderOffer: getFoundingOfferStats(),
+    ...(options.locals || {}),
     ...buildSeoData(options.seo)
   });
 }
@@ -2811,6 +3145,20 @@ function renderAnalytics(res, user, row, report, options = {}) {
   });
 }
 
+function buildRecentSignupFeed(limit = 8) {
+  return listUsers()
+    .slice(0, limit)
+    .map((user) => {
+      const firstName = String(user.name || "Someone").trim().split(/\s+/)[0] || "Someone";
+      return {
+        business_name: user.business_name || "New brand",
+        message: `${firstName} from ${user.business_name || "a new brand"} just started a myurlc.com page.`,
+        relative_created_at: formatRelativeTime(user.created_at),
+        created_at: user.created_at
+      };
+    });
+}
+
 function buildCustomerManageUrls() {
   return {
     app_home_url: absoluteUrl("/app"),
@@ -2911,6 +3259,20 @@ function buildPublicPageApiPayload(row) {
       join_url: order.owner_referral_share_url || absoluteUrl("/signup"),
       subscribe_url: order.lead_form_enabled ? `${order.public_url}#subscribe` : absoluteUrl("/signup")
     }
+  };
+}
+
+function buildPublicReferralPayload(user) {
+  if (!user) {
+    return null;
+  }
+
+  const safeCode = sanitizeReferralCode(user.referral_code);
+  return {
+    referral_code: safeCode,
+    name: String(user.name || "").trim(),
+    business_name: String(user.business_name || "").trim(),
+    visible_name: String(user.business_name || user.name || "A myurlc.com member").trim()
   };
 }
 
@@ -3190,6 +3552,7 @@ app.get("/api/config", (req, res) => {
     app_base_url: APP_BASE_URL,
     support_email: SUPPORT_EMAIL,
     founder_offer: getFoundingOfferStats(),
+    recent_signups: buildRecentSignupFeed(6),
     manage: buildCustomerManageUrls()
   });
 });
@@ -3203,6 +3566,23 @@ app.get("/api/public/pages/:slug", (req, res) => {
   return res.json({
     ok: true,
     ...buildPublicPageApiPayload(order)
+  });
+});
+
+app.get("/api/public/referrals/:code", (req, res) => {
+  const referralCode = sanitizeReferralCode(req.params.code);
+  if (!referralCode) {
+    return respondApiError(res, 404, "Referral code not found.");
+  }
+
+  const referrer = getUserByReferralCode(referralCode);
+  if (!referrer) {
+    return respondApiError(res, 404, "Referral code not found.");
+  }
+
+  return res.json({
+    ok: true,
+    referrer: buildPublicReferralPayload(referrer)
   });
 });
 
@@ -3364,6 +3744,69 @@ app.post("/api/auth/login", requireGuestApi, (req, res) => {
   });
 });
 
+app.post("/api/auth/forgot-password", async (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  if (!email) {
+    return respondApiError(res, 400, "Enter the email address you used to sign up.");
+  }
+
+  const result = await requestPasswordReset(email, {
+    ip: req.ip,
+    userAgent: req.get("user-agent") || ""
+  });
+
+  return res.json(result);
+});
+
+app.get("/api/auth/reset-password", (req, res) => {
+  const token = String(req.query.token || "").trim();
+  const record = getActivePasswordResetRecord(token);
+  if (!record) {
+    return respondApiError(res, 404, "That reset link is invalid or expired.");
+  }
+
+  const user = getUserById(record.user_id);
+  if (!user) {
+    return respondApiError(res, 404, "That reset link is invalid or expired.");
+  }
+
+  return res.json({
+    ok: true,
+    email_hint: maskEmail(user.email),
+    expires_at: record.expires_at
+  });
+});
+
+app.post("/api/auth/reset-password", (req, res) => {
+  const token = String(req.body.token || "").trim();
+  const password = String(req.body.password || "");
+  const confirmPassword = String(req.body.confirm_password || "");
+
+  if (!token) {
+    return respondApiError(res, 400, "That reset link is invalid or expired.");
+  }
+
+  if (password.length < 8) {
+    return respondApiError(res, 400, "Use at least 8 characters for the new password.");
+  }
+
+  if (confirmPassword && password !== confirmPassword) {
+    return respondApiError(res, 400, "Your password confirmation does not match.");
+  }
+
+  const result = consumePasswordReset(token, password);
+  if (!result.ok) {
+    return respondApiError(res, 400, result.error);
+  }
+
+  req.session.customerUserId = result.user.id;
+  return res.json({
+    ok: true,
+    message: "Password updated. You are signed in now.",
+    redirect_url: absoluteUrl("/app")
+  });
+});
+
 app.post("/api/auth/logout", (req, res) => {
   if (req.session) {
     delete req.session.customerUserId;
@@ -3430,17 +3873,7 @@ app.get("/", (req, res) => {
     .filter((order) => order.is_published)
     .slice(0, 6)
     .map(toOrderViewModel);
-  const recentSignups = listUsers()
-    .slice(0, 8)
-    .map((user) => {
-      const firstName = String(user.name || "Someone").trim().split(/\s+/)[0] || "Someone";
-      return {
-        business_name: user.business_name || "New brand",
-        message: `${firstName} from ${user.business_name || "a new brand"} just started a myurlc.com page.`,
-        relative_created_at: formatRelativeTime(user.created_at),
-        created_at: user.created_at
-      };
-    });
+  const recentSignups = buildRecentSignupFeed(8);
 
   res.render("home", {
     pageTitle: "Free Link in Bio Pages for Creators",
@@ -3646,6 +4079,168 @@ app.post("/signup", requireGuest, (req, res) => {
 
   ensureCustomerPage(user);
   req.session.customerUserId = user.id;
+  return res.redirect("/studio");
+});
+
+app.get("/forgot-password", requireGuest, (req, res) => {
+  return renderAuthPage(res, "forgot-password", {
+    pageTitle: "Forgot Password",
+    values: {
+      email: normalizeEmail(req.query.email)
+    },
+    seo: {
+      canonicalUrl: absoluteUrl("/forgot-password"),
+      metaDescription: "Request a secure password reset link for your myurlc.com account.",
+      metaRobots: "noindex,nofollow"
+    }
+  });
+});
+
+app.post("/forgot-password", requireGuest, async (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  const values = { email };
+
+  if (!email) {
+    return renderAuthPage(res, "forgot-password", {
+      statusCode: 400,
+      pageTitle: "Forgot Password",
+      error: "Enter the email address you used to sign up.",
+      values,
+      seo: {
+        canonicalUrl: absoluteUrl("/forgot-password"),
+        metaDescription: "Request a secure password reset link for your myurlc.com account.",
+        metaRobots: "noindex,nofollow"
+      }
+    });
+  }
+
+  const result = await requestPasswordReset(email, {
+    ip: req.ip,
+    userAgent: req.get("user-agent") || ""
+  });
+
+  return renderAuthPage(res, "forgot-password", {
+    pageTitle: "Forgot Password",
+    info: result.debug_reset_url
+      ? `${result.message} Test link: ${result.debug_reset_url}`
+      : result.message,
+    values,
+    seo: {
+      canonicalUrl: absoluteUrl("/forgot-password"),
+      metaDescription: "Request a secure password reset link for your myurlc.com account.",
+      metaRobots: "noindex,nofollow"
+    }
+  });
+});
+
+app.get("/reset-password", (req, res) => {
+  const token = String(req.query.token || "").trim();
+  const record = getActivePasswordResetRecord(token);
+  const user = record ? getUserById(record.user_id) : null;
+
+  return renderAuthPage(res, "reset-password", {
+    statusCode: token && record && user ? 200 : 400,
+    pageTitle: "Reset Password",
+    error: token && record && user ? null : "That reset link is invalid or expired. Request a new one.",
+    values: { token },
+    locals: {
+      token,
+      emailHint: user ? maskEmail(user.email) : "",
+      tokenValid: Boolean(token && record && user)
+    },
+    seo: {
+      canonicalUrl: absoluteUrl("/reset-password"),
+      metaDescription: "Choose a new password for your myurlc.com account.",
+      metaRobots: "noindex,nofollow"
+    }
+  });
+});
+
+app.post("/reset-password", (req, res) => {
+  const token = String(req.body.token || "").trim();
+  const password = String(req.body.password || "");
+  const confirmPassword = String(req.body.confirm_password || "");
+  const activeRecord = getActivePasswordResetRecord(token);
+  const activeUser = activeRecord ? getUserById(activeRecord.user_id) : null;
+
+  if (!token || !activeRecord || !activeUser) {
+    return renderAuthPage(res, "reset-password", {
+      statusCode: 400,
+      pageTitle: "Reset Password",
+      error: "That reset link is invalid or expired. Request a new one.",
+      values: { token: "" },
+      locals: {
+        token: "",
+        emailHint: "",
+        tokenValid: false
+      },
+      seo: {
+        canonicalUrl: absoluteUrl("/reset-password"),
+        metaDescription: "Choose a new password for your myurlc.com account.",
+        metaRobots: "noindex,nofollow"
+      }
+    });
+  }
+
+  if (password.length < 8) {
+    return renderAuthPage(res, "reset-password", {
+      statusCode: 400,
+      pageTitle: "Reset Password",
+      error: "Use at least 8 characters for the new password.",
+      values: { token },
+      locals: {
+        token,
+        emailHint: maskEmail(activeUser.email),
+        tokenValid: true
+      },
+      seo: {
+        canonicalUrl: absoluteUrl("/reset-password"),
+        metaDescription: "Choose a new password for your myurlc.com account.",
+        metaRobots: "noindex,nofollow"
+      }
+    });
+  }
+
+  if (confirmPassword && password !== confirmPassword) {
+    return renderAuthPage(res, "reset-password", {
+      statusCode: 400,
+      pageTitle: "Reset Password",
+      error: "Your password confirmation does not match.",
+      values: { token },
+      locals: {
+        token,
+        emailHint: maskEmail(activeUser.email),
+        tokenValid: true
+      },
+      seo: {
+        canonicalUrl: absoluteUrl("/reset-password"),
+        metaDescription: "Choose a new password for your myurlc.com account.",
+        metaRobots: "noindex,nofollow"
+      }
+    });
+  }
+
+  const result = consumePasswordReset(token, password);
+  if (!result.ok) {
+    return renderAuthPage(res, "reset-password", {
+      statusCode: 400,
+      pageTitle: "Reset Password",
+      error: result.error,
+      values: { token: "" },
+      locals: {
+        token: "",
+        emailHint: "",
+        tokenValid: false
+      },
+      seo: {
+        canonicalUrl: absoluteUrl("/reset-password"),
+        metaDescription: "Choose a new password for your myurlc.com account.",
+        metaRobots: "noindex,nofollow"
+      }
+    });
+  }
+
+  req.session.customerUserId = result.user.id;
   return res.redirect("/studio");
 });
 

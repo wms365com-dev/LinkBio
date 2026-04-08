@@ -4,6 +4,21 @@ declare(strict_types=1);
 require_once __DIR__ . '/frontend.php';
 
 $refCode = isset($_GET['ref']) ? strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) $_GET['ref'])) : '';
+$referrer = null;
+$referralMessageType = '';
+$referralMessageText = '';
+
+if ($refCode !== '') {
+    $referralResponse = myurlc_fetch_json('/api/public/referrals/' . rawurlencode($refCode));
+    if ($referralResponse['ok'] && is_array($referralResponse['data']) && !empty($referralResponse['data']['referrer'])) {
+        $referrer = $referralResponse['data']['referrer'];
+        $referralMessageType = 'success';
+        $referralMessageText = 'Referred by ' . (string) ($referrer['visible_name'] ?? $refCode) . '.';
+    } else {
+        $referralMessageType = 'error';
+        $referralMessageText = 'Referral code ' . $refCode . ' was not found.';
+    }
+}
 
 myurlc_render_head(
     'Create your page',
@@ -21,6 +36,15 @@ myurlc_render_topbar();
         The first <?= myurlc_html((string) MYURLC_FOUNDER_LIMIT) ?> users get lifetime access.
         Everyone else starts with a free trial.
       </p>
+
+      <?php if ($referralMessageText !== ''): ?>
+        <div class="message message-<?= myurlc_html($referralMessageType) ?> referral-banner">
+          <strong><?= myurlc_html($referralMessageText) ?></strong>
+          <?php if ($referrer && !empty($referrer['referral_code'])): ?>
+            <span>Your signup will count toward referral code <?= myurlc_html((string) $referrer['referral_code']) ?>.</span>
+          <?php endif; ?>
+        </div>
+      <?php endif; ?>
 
       <form class="form-stack" id="signup-form">
         <div class="field-stack">

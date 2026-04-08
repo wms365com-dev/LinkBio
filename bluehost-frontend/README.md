@@ -9,6 +9,7 @@ This folder gives you a split setup:
 
 - `index.php` marketing/home page
 - `signup.php` and `login.php` that talk to the Railway API
+- `forgot-password.php` and `reset-password.php` for account recovery
 - `app.php` customer dashboard shell
 - `profile.php` public pages at `https://www.myurlc.com/username`
 - `support.php` ticket form
@@ -22,15 +23,13 @@ This folder gives you a split setup:
 
 ```php
 define('MYURLC_PUBLIC_WEB_URL', 'https://www.myurlc.com');
-define('MYURLC_API_BASE_URL', 'https://your-railway-service.up.railway.app');
+define('MYURLC_API_BASE_URL', 'https://api.myurlc.com');
 ```
-
-If you move the Railway app to `https://api.myurlc.com`, use that instead.
 
 ## Upload to Bluehost
 
 1. Upload the contents of this folder to the Bluehost document root for `www.myurlc.com`
-2. Keep `.htaccess` in the same root so Apache rewrites `/username`, `/signup`, `/login`, `/app`, and `/support`
+2. Keep `.htaccess` in the same root so Apache rewrites `/username`, `/signup`, `/login`, `/forgot-password`, `/reset-password`, `/app`, and `/support`
 3. Make sure `www.myurlc.com` points to Bluehost and the Railway app/API uses a separate host such as:
    - `https://api.myurlc.com`
    - or the default Railway URL while testing

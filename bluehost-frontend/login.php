@@ -30,6 +30,8 @@ myurlc_render_topbar('login');
         <button class="btn btn-primary" type="submit">Log in</button>
       </form>
 
+      <p class="page-copy"><a class="link-muted" href="/forgot-password">Forgot password?</a></p>
+
       <p class="page-copy">Need an account? <a class="link-muted" href="/signup">Start free</a></p>
     </section>
   </main>

@@ -117,15 +117,22 @@ function myurlc_platform_badge(string $platform): string {
 
 function myurlc_render_head(string $pageTitle, string $description, string $canonicalUrl, string $bodyClass = ''): void {
     $title = $pageTitle ? $pageTitle . ' | ' . MYURLC_SITE_NAME : MYURLC_SITE_NAME;
+    if (!headers_sent()) {
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        header('X-myurlc-frontend-version: ' . MYURLC_FRONTEND_VERSION);
+    }
     ?>
 <!DOCTYPE html>
-<html lang="en" data-api-base-url="<?= myurlc_html(MYURLC_API_BASE_URL) ?>">
+<html lang="en" data-api-base-url="<?= myurlc_html(MYURLC_API_BASE_URL) ?>" data-build="<?= myurlc_html(MYURLC_FRONTEND_VERSION) ?>">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#10131f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="myurlc-frontend-version" content="<?= myurlc_html(MYURLC_FRONTEND_VERSION) ?>">
   <title><?= myurlc_html($title) ?></title>
   <meta name="description" content="<?= myurlc_html($description) ?>">
   <link rel="canonical" href="<?= myurlc_html($canonicalUrl) ?>">
@@ -139,7 +146,7 @@ function myurlc_render_head(string $pageTitle, string $description, string $cano
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144;700&family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/site.css">
+  <link rel="stylesheet" href="/assets/site.css?v=<?= myurlc_html(MYURLC_FRONTEND_VERSION) ?>">
 </head>
 <body class="<?= myurlc_html($bodyClass) ?>">
 <?php
@@ -169,7 +176,7 @@ function myurlc_render_footer(): void {
     <p><a href="/support">Support</a> <span class="footer-divider">|</span> <a href="mailto:<?= myurlc_html(MYURLC_SUPPORT_EMAIL) ?>"><?= myurlc_html(MYURLC_SUPPORT_EMAIL) ?></a></p>
   </footer>
 </div>
-<script src="/assets/site.js"></script>
+<script src="/assets/site.js?v=<?= myurlc_html(MYURLC_FRONTEND_VERSION) ?>"></script>
 </body>
 </html>
 <?php

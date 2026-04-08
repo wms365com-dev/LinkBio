@@ -6,6 +6,7 @@ A Railway-ready Express app for selling done-for-you and self-serve link-in-bio 
 
 - Marketing landing page
 - Customer signup and login
+- Forgot-password and reset-password flow
 - 7-day customer free trial with billing gate
 - Self-serve page studio with publish/unpublish controls
 - Stripe Checkout starter flow
@@ -63,6 +64,13 @@ cp .env.example .env
 - `SESSION_COOKIE_SAMESITE`
 - `ADMIN_PASSWORD`
 - `SUPPORT_EMAIL`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_SECURE`
+- `SMTP_USER`
+- `SMTP_PASSWORD`
+- `SMTP_FROM`
+- `PASSWORD_RESET_TOKEN_TTL_MINUTES`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_PRICE_ID`
 - `OFFER_PRICE_DISPLAY`
@@ -102,6 +110,13 @@ For local-only JSON fallback, leave `DATABASE_URL` blank.
    - `SESSION_COOKIE_SAMESITE`
    - `ADMIN_PASSWORD`
    - `SUPPORT_EMAIL`
+   - `SMTP_HOST`
+   - `SMTP_PORT`
+   - `SMTP_SECURE`
+   - `SMTP_USER`
+   - `SMTP_PASSWORD`
+   - `SMTP_FROM`
+   - `PASSWORD_RESET_TOKEN_TTL_MINUTES`
    - `STRIPE_SECRET_KEY`
    - `STRIPE_PRICE_ID`
    - `OFFER_PRICE_DISPLAY`
@@ -141,6 +156,9 @@ The Railway app now exposes JSON endpoints such as:
 - `POST /api/public/pages/:slug/lead`
 - `POST /api/auth/signup`
 - `POST /api/auth/login`
+- `POST /api/auth/forgot-password`
+- `GET /api/auth/reset-password`
+- `POST /api/auth/reset-password`
 - `GET /api/auth/me`
 - `GET /api/customer/page`
 - `GET /api/customer/analytics`
@@ -153,6 +171,7 @@ Upload the files in [bluehost-frontend](/C:/LinkBio/linkbio-mvp/linkbio-mvp/blue
 
 - homepage
 - login/signup
+- forgot/reset password
 - dashboard shell
 - support page
 - public profile pages at `/username`
