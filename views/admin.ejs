@@ -42,6 +42,10 @@
         <strong><%= stats.tickets %></strong>
       </article>
       <article class="card stat-card">
+        <span>Feedback posts</span>
+        <strong><%= stats.feedbackPosts %></strong>
+      </article>
+      <article class="card stat-card">
         <span>Users</span>
         <strong><%= stats.users %></strong>
       </article>
@@ -57,6 +61,46 @@
         <span>Founder spots left</span>
         <strong><%= stats.founderRemaining %></strong>
       </article>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <div>
+          <p class="eyebrow">Public roadmap</p>
+          <h2>Recent feedback</h2>
+        </div>
+      </div>
+
+      <div class="lead-list">
+        <% if (!recentFeedbackPosts || recentFeedbackPosts.length === 0) { %>
+          <div class="empty-state">
+            <h3>No feedback yet</h3>
+            <p>Public feedback posts will show up here for review and status updates.</p>
+          </div>
+        <% } %>
+
+        <% (recentFeedbackPosts || []).forEach(post => { %>
+          <article class="lead-item">
+            <span><strong>#<%= post.id %></strong> - <%= post.category_label %> - <%= post.status_label %></span>
+            <strong><%= post.title %></strong>
+            <small><%= post.author.visible_name %> - <%= post.relative_created_at %></small>
+            <p><%= post.body %></p>
+            <small><%= post.likes_count %> likes - <%= post.comments_count %> comments</small>
+            <div class="actions">
+              <form method="POST" action="/admin/feedback/<%= post.id %>/status">
+                <select name="status">
+                  <option value="under_review" <%= post.status === 'under_review' ? 'selected' : '' %>>Under review</option>
+                  <option value="planned" <%= post.status === 'planned' ? 'selected' : '' %>>Planned</option>
+                  <option value="in_progress" <%= post.status === 'in_progress' ? 'selected' : '' %>>In progress</option>
+                  <option value="shipped" <%= post.status === 'shipped' ? 'selected' : '' %>>Shipped</option>
+                  <option value="hidden" <%= post.status === 'hidden' ? 'selected' : '' %>>Hidden</option>
+                </select>
+                <button class="btn" type="submit">Save status</button>
+              </form>
+            </div>
+          </article>
+        <% }) %>
+      </div>
     </section>
 
     <section class="card">

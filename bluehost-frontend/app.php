@@ -75,6 +75,7 @@ myurlc_render_topbar();
         const actionsList = [
           [isPublished ? 'Open live page' : 'Open studio to publish', isPublished ? me.page.public_url : me.manage.studio_url, 'btn btn-primary'],
           ['Open studio', me.manage.studio_url, 'btn btn-secondary'],
+          ['Feedback board', me.manage.feedback_url || '/feedback', 'btn btn-secondary'],
           ['Billing', me.manage.billing_url, 'btn btn-secondary'],
           ['Export JSON', me.manage.export_url, 'btn btn-secondary'],
           ['Support', me.manage.support_url, 'btn btn-secondary'],

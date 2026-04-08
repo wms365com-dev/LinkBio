@@ -86,6 +86,20 @@ const SOCIAL_LINK_SUGGESTIONS = [
   { label: "Custom Link", placeholder: "yourdomain.com/anything" }
 ];
 
+const FEEDBACK_CATEGORY_OPTIONS = [
+  { value: "bug", label: "Bug" },
+  { value: "feature", label: "Feature request" },
+  { value: "improvement", label: "Improvement" }
+];
+
+const FEEDBACK_STATUS_OPTIONS = [
+  { value: "under_review", label: "Under review", public: true },
+  { value: "planned", label: "Planned", public: true },
+  { value: "in_progress", label: "In progress", public: true },
+  { value: "shipped", label: "Shipped", public: true },
+  { value: "hidden", label: "Hidden", public: false }
+];
+
 const THEME_ALIASES = {
   dark: "midnight",
   light: "linen"
@@ -110,6 +124,7 @@ const RESERVED_USERNAMES = new Set([
   "api",
   "billing",
   "buy",
+  "feedback",
   "health",
   "intake",
   "login",
@@ -269,7 +284,10 @@ function normalizeStore(store = {}) {
     analytics_events: Array.isArray(store.analytics_events) ? store.analytics_events : [],
     leads: Array.isArray(store.leads) ? store.leads : [],
     support_tickets: Array.isArray(store.support_tickets) ? store.support_tickets : [],
-    password_reset_tokens: Array.isArray(store.password_reset_tokens) ? store.password_reset_tokens : []
+    password_reset_tokens: Array.isArray(store.password_reset_tokens) ? store.password_reset_tokens : [],
+    feedback_posts: Array.isArray(store.feedback_posts) ? store.feedback_posts : [],
+    feedback_comments: Array.isArray(store.feedback_comments) ? store.feedback_comments : [],
+    feedback_votes: Array.isArray(store.feedback_votes) ? store.feedback_votes : []
   };
 }
 
@@ -695,6 +713,7 @@ function buildSitemapEntries() {
   const staticEntries = [
     { loc: absoluteUrl("/"), lastmod: latestPublishedDate, changefreq: "daily", priority: "1.0" },
     { loc: absoluteUrl("/signup"), lastmod: latestPublishedDate, changefreq: "weekly", priority: "0.9" },
+    { loc: absoluteUrl("/feedback"), lastmod: latestPublishedDate, changefreq: "daily", priority: "0.8" },
     { loc: absoluteUrl("/buy"), lastmod: latestPublishedDate, changefreq: "weekly", priority: "0.8" }
   ];
 
@@ -2356,6 +2375,262 @@ function updateSupportTicket(id, updates) {
   return nextTicket;
 }
 
+function sanitizeFeedbackCategory(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return FEEDBACK_CATEGORY_OPTIONS.some((option) => option.value === normalized) ? normalized : "feature";
+}
+
+function normalizeFeedbackStatus(value, fallback = "under_review") {
+  const normalized = String(value || "").trim().toLowerCase();
+  return FEEDBACK_STATUS_OPTIONS.some((option) => option.value === normalized) ? normalized : fallback;
+}
+
+function getFeedbackStatusLabel(value) {
+  return FEEDBACK_STATUS_OPTIONS.find((option) => option.value === value)?.label || "Under review";
+}
+
+function getFeedbackPosts() {
+  return readStore().feedback_posts;
+}
+
+function listFeedbackPosts(options = {}) {
+  const includeHidden = Boolean(options.includeHidden);
+  return [...getFeedbackPosts()]
+    .filter((post) => includeHidden || post.status !== "hidden")
+    .sort((left, right) => new Date(right.updated_at || right.created_at || 0).getTime() - new Date(left.updated_at || left.created_at || 0).getTime());
+}
+
+function getFeedbackPostById(id, options = {}) {
+  const includeHidden = Boolean(options.includeHidden);
+  const post = getFeedbackPosts().find((entry) => String(entry.id) === String(id)) || null;
+  if (!post || (!includeHidden && post.status === "hidden")) {
+    return null;
+  }
+  return post;
+}
+
+function getFeedbackComments() {
+  return readStore().feedback_comments;
+}
+
+function listFeedbackCommentsForPost(postId) {
+  return [...getFeedbackComments()]
+    .filter((comment) => String(comment.post_id) === String(postId))
+    .sort((left, right) => new Date(left.created_at || 0).getTime() - new Date(right.created_at || 0).getTime());
+}
+
+function getFeedbackVotes() {
+  return readStore().feedback_votes;
+}
+
+function listFeedbackVotesForPost(postId) {
+  return getFeedbackVotes().filter((vote) => String(vote.post_id) === String(postId));
+}
+
+function hasFeedbackVote(postId, userId) {
+  return getFeedbackVotes().some((vote) => String(vote.post_id) === String(postId) && String(vote.user_id) === String(userId));
+}
+
+function createFeedbackPost(input) {
+  const store = readStore();
+  const now = new Date().toISOString();
+  const post = {
+    id: nextId(store.feedback_posts),
+    user_id: String(input.user_id),
+    name_snapshot: String(input.name_snapshot || "").trim(),
+    business_name_snapshot: String(input.business_name_snapshot || "").trim(),
+    title: String(input.title || "").trim().slice(0, 140),
+    body: String(input.body || "").trim().slice(0, 4000),
+    category: sanitizeFeedbackCategory(input.category),
+    status: normalizeFeedbackStatus(input.status, "under_review"),
+    created_at: now,
+    updated_at: now
+  };
+
+  store.feedback_posts.push(post);
+  writeStore(store);
+  return getFeedbackPostById(post.id, { includeHidden: true });
+}
+
+function updateFeedbackPost(id, updates) {
+  const store = readStore();
+  const index = store.feedback_posts.findIndex((post) => String(post.id) === String(id));
+  if (index === -1) {
+    return null;
+  }
+
+  const existing = store.feedback_posts[index];
+  const nextPost = {
+    ...existing,
+    ...updates,
+    category: sanitizeFeedbackCategory(updates.category ?? existing.category),
+    status: normalizeFeedbackStatus(updates.status ?? existing.status, existing.status || "under_review"),
+    title: String(updates.title ?? existing.title).trim().slice(0, 140),
+    body: String(updates.body ?? existing.body).trim().slice(0, 4000),
+    updated_at: new Date().toISOString()
+  };
+
+  store.feedback_posts[index] = nextPost;
+  writeStore(store);
+  return getFeedbackPostById(id, { includeHidden: true });
+}
+
+function createFeedbackComment(input) {
+  const store = readStore();
+  const now = new Date().toISOString();
+  const comment = {
+    id: nextId(store.feedback_comments),
+    post_id: String(input.post_id),
+    user_id: String(input.user_id),
+    name_snapshot: String(input.name_snapshot || "").trim(),
+    business_name_snapshot: String(input.business_name_snapshot || "").trim(),
+    body: String(input.body || "").trim().slice(0, 2000),
+    created_at: now,
+    updated_at: now
+  };
+
+  store.feedback_comments.push(comment);
+  const postIndex = store.feedback_posts.findIndex((post) => String(post.id) === String(input.post_id));
+  if (postIndex >= 0) {
+    store.feedback_posts[postIndex] = {
+      ...store.feedback_posts[postIndex],
+      updated_at: now
+    };
+  }
+  writeStore(store);
+  return comment;
+}
+
+function toggleFeedbackVote(postId, userId) {
+  const store = readStore();
+  const index = store.feedback_votes.findIndex((vote) => String(vote.post_id) === String(postId) && String(vote.user_id) === String(userId));
+  const now = new Date().toISOString();
+
+  let liked = false;
+  if (index >= 0) {
+    store.feedback_votes.splice(index, 1);
+  } else {
+    store.feedback_votes.push({
+      id: nextId(store.feedback_votes),
+      post_id: String(postId),
+      user_id: String(userId),
+      created_at: now
+    });
+    liked = true;
+  }
+
+  const postIndex = store.feedback_posts.findIndex((post) => String(post.id) === String(postId));
+  if (postIndex >= 0) {
+    store.feedback_posts[postIndex] = {
+      ...store.feedback_posts[postIndex],
+      updated_at: now
+    };
+  }
+
+  writeStore(store);
+  return {
+    liked,
+    likes_count: listFeedbackVotesForPost(postId).length
+  };
+}
+
+function buildFeedbackAuthorPayload(userId, fallback = {}) {
+  const user = userId ? getUserById(userId) : null;
+  const order = user ? getOrderByOwnerUserId(user.id) : null;
+  const snapshotName = String(fallback.name_snapshot || fallback.name || "").trim();
+  const snapshotBusiness = String(fallback.business_name_snapshot || fallback.business_name || "").trim();
+  const fullName = String(user?.name || snapshotName || "Member").trim();
+  const businessName = String(user?.business_name || snapshotBusiness || "").trim();
+  const firstName = fullName.split(/\s+/)[0] || "Member";
+  const visibleName = businessName || firstName;
+  const slug = order?.slug || "";
+  const pageUrl = order && order.is_published ? absoluteUrl(buildPublicPagePath(order.slug)) : "";
+
+  return {
+    visible_name: visibleName,
+    business_name: businessName,
+    first_name: firstName,
+    handle: slug ? `@${slug}` : "",
+    page_url: pageUrl
+  };
+}
+
+function buildFeedbackCommentPayload(comment) {
+  return {
+    id: comment.id,
+    post_id: comment.post_id,
+    body: comment.body,
+    created_at: comment.created_at,
+    updated_at: comment.updated_at,
+    formatted_created_at: formatDateTime(comment.created_at),
+    relative_created_at: formatRelativeTime(comment.created_at),
+    author: buildFeedbackAuthorPayload(comment.user_id, comment)
+  };
+}
+
+function buildFeedbackPostPayload(post, viewer = null) {
+  const comments = listFeedbackCommentsForPost(post.id).map(buildFeedbackCommentPayload);
+  const likes = listFeedbackVotesForPost(post.id);
+  return {
+    id: post.id,
+    user_id: post.user_id,
+    title: post.title,
+    body: post.body,
+    category: post.category,
+    category_label: FEEDBACK_CATEGORY_OPTIONS.find((option) => option.value === post.category)?.label || "Feature request",
+    status: post.status,
+    status_label: getFeedbackStatusLabel(post.status),
+    created_at: post.created_at,
+    updated_at: post.updated_at,
+    formatted_created_at: formatDateTime(post.created_at),
+    relative_created_at: formatRelativeTime(post.created_at),
+    likes_count: likes.length,
+    comments_count: comments.length,
+    viewer_has_liked: viewer ? hasFeedbackVote(post.id, viewer.id) : false,
+    author: buildFeedbackAuthorPayload(post.user_id, post),
+    comments
+  };
+}
+
+function buildFeedbackBoardPayload(viewer = null, options = {}) {
+  const selectedCategory = FEEDBACK_CATEGORY_OPTIONS.some((option) => option.value === String(options.category || "")) ? String(options.category) : "";
+  const selectedStatus = FEEDBACK_STATUS_OPTIONS.some((option) => option.value === String(options.status || "") && option.public)
+    ? String(options.status)
+    : "";
+  const posts = listFeedbackPosts()
+    .filter((post) => !selectedCategory || post.category === selectedCategory)
+    .filter((post) => !selectedStatus || post.status === selectedStatus)
+    .map((post) => buildFeedbackPostPayload(post, viewer));
+
+  const likes = posts.reduce((sum, post) => sum + post.likes_count, 0);
+  const comments = posts.reduce((sum, post) => sum + post.comments_count, 0);
+
+  return {
+    stats: {
+      posts: posts.length,
+      comments,
+      likes
+    },
+    filters: {
+      category: selectedCategory,
+      status: selectedStatus
+    },
+    categories: FEEDBACK_CATEGORY_OPTIONS,
+    statuses: FEEDBACK_STATUS_OPTIONS.filter((option) => option.public),
+    posts,
+    viewer: viewer
+      ? {
+          signed_in: true,
+          id: viewer.id,
+          name: viewer.name,
+          business_name: viewer.business_name
+        }
+      : {
+          signed_in: false
+        }
+  };
+}
+
 function getOrders() {
   return readStore().orders;
 }
@@ -3167,6 +3442,7 @@ function buildCustomerManageUrls() {
     studio_url: appAbsoluteUrl("/studio"),
     analytics_url: appAbsoluteUrl("/analytics"),
     billing_url: appAbsoluteUrl("/billing"),
+    feedback_url: absoluteUrl("/feedback"),
     support_url: absoluteUrl("/support"),
     export_url: appAbsoluteUrl("/api/customer/export"),
     logout_url: appAbsoluteUrl("/api/auth/logout")
@@ -3593,6 +3869,17 @@ app.get("/api/public/referrals/:code", (req, res) => {
   });
 });
 
+app.get("/api/public/feedback", (req, res) => {
+  const viewer = getCurrentCustomer(req);
+  return res.json({
+    ok: true,
+    ...buildFeedbackBoardPayload(viewer, {
+      category: req.query.category,
+      status: req.query.status
+    })
+  });
+});
+
 app.post("/api/public/pages/:slug/view", (req, res) => {
   const order = getPublishedOrderBySlug(req.params.slug);
   if (!order) {
@@ -3831,6 +4118,76 @@ app.get("/api/customer/page", requireCustomerApi, (req, res) => {
   return res.json({
     ok: true,
     ...buildCustomerApiPayload(req.currentCustomer)
+  });
+});
+
+app.post("/api/customer/feedback/posts", requireCustomerApi, (req, res) => {
+  const title = String(req.body.title || "").trim();
+  const body = String(req.body.body || "").trim();
+  const category = sanitizeFeedbackCategory(req.body.category);
+
+  if (title.length < 6) {
+    return respondApiError(res, 400, "Add a short title so other members know what this post is about.");
+  }
+
+  if (body.length < 20) {
+    return respondApiError(res, 400, "Add a little more detail so the team knows what to improve.");
+  }
+
+  const post = createFeedbackPost({
+    user_id: req.currentCustomer.id,
+    name_snapshot: req.currentCustomer.name,
+    business_name_snapshot: req.currentCustomer.business_name,
+    title,
+    body,
+    category
+  });
+
+  return res.status(201).json({
+    ok: true,
+    message: "Your post is live on the feedback board.",
+    post: buildFeedbackPostPayload(post, req.currentCustomer)
+  });
+});
+
+app.post("/api/customer/feedback/posts/:id/comments", requireCustomerApi, (req, res) => {
+  const post = getFeedbackPostById(req.params.id);
+  if (!post) {
+    return respondApiError(res, 404, "That feedback post was not found.");
+  }
+
+  const body = String(req.body.body || "").trim();
+  if (body.length < 2) {
+    return respondApiError(res, 400, "Add a comment before you post it.");
+  }
+
+  createFeedbackComment({
+    post_id: post.id,
+    user_id: req.currentCustomer.id,
+    name_snapshot: req.currentCustomer.name,
+    business_name_snapshot: req.currentCustomer.business_name,
+    body
+  });
+
+  return res.status(201).json({
+    ok: true,
+    message: "Comment added.",
+    post: buildFeedbackPostPayload(getFeedbackPostById(post.id), req.currentCustomer)
+  });
+});
+
+app.post("/api/customer/feedback/posts/:id/likes", requireCustomerApi, (req, res) => {
+  const post = getFeedbackPostById(req.params.id);
+  if (!post) {
+    return respondApiError(res, 404, "That feedback post was not found.");
+  }
+
+  const result = toggleFeedbackVote(post.id, req.currentCustomer.id);
+  return res.json({
+    ok: true,
+    liked: result.liked,
+    likes_count: result.likes_count,
+    post: buildFeedbackPostPayload(getFeedbackPostById(post.id), req.currentCustomer)
   });
 });
 
@@ -4598,6 +4955,7 @@ app.get("/admin", requireAdmin, (req, res) => {
   const analyticsEvents = listAnalyticsEvents();
   const leads = listLeads();
   const supportTickets = listSupportTickets();
+  const feedbackPosts = listFeedbackPosts({ includeHidden: true });
   const users = listUsers().map(toCustomerViewModel);
   const founderOffer = getFoundingOfferStats();
   const stats = {
@@ -4608,6 +4966,7 @@ app.get("/admin", requireAdmin, (req, res) => {
     clicks: analyticsEvents.filter((event) => event.event_type === "link_click").length,
     leads: leads.length,
     tickets: supportTickets.length,
+    feedbackPosts: feedbackPosts.length,
     users: users.length,
     referralMonths: users.reduce((sum, user) => sum + (user.referral_bonus_months_earned || 0), 0),
     founderMembers: founderOffer.claimed,
@@ -4618,6 +4977,7 @@ app.get("/admin", requireAdmin, (req, res) => {
     pageTitle: "Admin Dashboard",
     orders,
     stats,
+    recentFeedbackPosts: feedbackPosts.slice(0, 8).map((post) => buildFeedbackPostPayload(post)),
     recentSupportTickets: supportTickets.slice(0, 8),
     ...buildSeoData({
       canonicalUrl: absoluteUrl("/admin"),
@@ -4635,6 +4995,19 @@ app.post("/admin/ticket/:id/resolve", requireAdmin, (req, res) => {
 
   updateSupportTicket(req.params.id, { status: "resolved" });
   return res.redirect("/admin?supportSaved=1");
+});
+
+app.post("/admin/feedback/:id/status", requireAdmin, (req, res) => {
+  const post = getFeedbackPostById(req.params.id, { includeHidden: true });
+  if (!post) {
+    return res.status(404).send("Feedback post not found");
+  }
+
+  updateFeedbackPost(req.params.id, {
+    status: normalizeFeedbackStatus(req.body.status, post.status)
+  });
+
+  return res.redirect("/admin?feedbackSaved=1");
 });
 
 app.get("/admin/order/:id", requireAdmin, (req, res) => {

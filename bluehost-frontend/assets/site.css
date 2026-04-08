@@ -787,6 +787,7 @@ body.support-page {
 body.home-page .topbar,
 body.auth-page .topbar,
 body.app-page .topbar,
+body.feedback-page .topbar,
 body.support-page .topbar {
   background: rgba(247, 239, 227, 0.72);
 }
@@ -794,6 +795,7 @@ body.support-page .topbar {
 body.home-page .topbar-links a,
 body.auth-page .topbar-links a,
 body.app-page .topbar-links a,
+body.feedback-page .topbar-links a,
 body.support-page .topbar-links a {
   color: var(--muted);
 }
@@ -804,6 +806,8 @@ body.auth-page .topbar-links a.is-active,
 body.auth-page .topbar-links a:hover,
 body.app-page .topbar-links a.is-active,
 body.app-page .topbar-links a:hover,
+body.feedback-page .topbar-links a.is-active,
+body.feedback-page .topbar-links a:hover,
 body.support-page .topbar-links a.is-active,
 body.support-page .topbar-links a:hover {
   color: var(--text);
@@ -812,6 +816,7 @@ body.support-page .topbar-links a:hover {
 body.home-page .btn-primary,
 body.auth-page .btn-primary,
 body.app-page .btn-primary,
+body.feedback-page .btn-primary,
 body.support-page .btn-primary {
   color: #fff9f4;
   background: linear-gradient(135deg, #c7582d, #eb9360 56%, #f1c780 100%);
@@ -821,6 +826,7 @@ body.support-page .btn-primary {
 body.home-page .btn-secondary,
 body.auth-page .btn-secondary,
 body.app-page .btn-secondary,
+body.feedback-page .btn-secondary,
 body.support-page .btn-secondary {
   background: rgba(255, 255, 255, 0.62);
   color: var(--text);
@@ -830,6 +836,7 @@ body.support-page .btn-secondary {
 body.home-page .btn-link,
 body.auth-page .btn-link,
 body.app-page .btn-link,
+body.feedback-page .btn-link,
 body.support-page .btn-link {
   color: #8a4e31;
 }
@@ -838,9 +845,11 @@ body.home-page .hero-card,
 body.home-page .card,
 body.auth-page .card,
 body.app-page .card,
+body.feedback-page .card,
 body.support-page .card,
 body.auth-page .form-card,
 body.app-page .app-shell,
+body.feedback-page .feedback-composer-card,
 body.support-page .form-card {
   background: rgba(255, 250, 244, 0.84);
   border: 1px solid rgba(71, 57, 43, 0.1);
@@ -856,6 +865,9 @@ body.auth-page select,
 body.app-page input,
 body.app-page textarea,
 body.app-page select,
+body.feedback-page input,
+body.feedback-page textarea,
+body.feedback-page select,
 body.support-page input,
 body.support-page textarea,
 body.support-page select {
@@ -870,6 +882,8 @@ body.auth-page input::placeholder,
 body.auth-page textarea::placeholder,
 body.app-page input::placeholder,
 body.app-page textarea::placeholder,
+body.feedback-page input::placeholder,
+body.feedback-page textarea::placeholder,
 body.support-page input::placeholder,
 body.support-page textarea::placeholder {
   color: rgba(71, 57, 43, 0.42);
@@ -878,6 +892,7 @@ body.support-page textarea::placeholder {
 body.home-page .message-info,
 body.auth-page .message-info,
 body.app-page .message-info,
+body.feedback-page .message-info,
 body.support-page .message-info {
   background: rgba(214, 106, 61, 0.08);
   color: #8a4e31;
@@ -885,6 +900,7 @@ body.support-page .message-info {
 }
 
 body.auth-page .message-success,
+body.feedback-page .message-success,
 body.support-page .message-success {
   background: rgba(215, 139, 72, 0.1);
   color: #8a4e31;
@@ -892,6 +908,7 @@ body.support-page .message-success {
 }
 
 body.auth-page .message-error,
+body.feedback-page .message-error,
 body.support-page .message-error {
   background: rgba(198, 88, 45, 0.1);
   color: #9e4a2b;
@@ -1236,6 +1253,159 @@ body.app-page .page-copy {
   color: var(--muted);
 }
 
+body.feedback-page .page-copy {
+  color: var(--muted);
+}
+
+.feedback-hero {
+  align-items: start;
+}
+
+.feedback-hero-card {
+  width: min(880px, 100%);
+}
+
+.feedback-stats {
+  margin-top: 18px;
+}
+
+.feedback-board-card,
+.feedback-composer-card,
+.feedback-guest-card {
+  margin-top: 24px;
+}
+
+.feedback-board {
+  display: grid;
+  gap: 18px;
+}
+
+.feedback-post {
+  padding: 20px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.54);
+  border: 1px solid rgba(71, 57, 43, 0.1);
+  box-shadow: 0 16px 30px rgba(88, 52, 28, 0.08);
+}
+
+.feedback-post-topline,
+.feedback-actions,
+.feedback-author {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.feedback-post h2 {
+  margin: 12px 0 10px;
+  font-size: clamp(1.25rem, 2.3vw, 1.7rem);
+}
+
+.feedback-body {
+  margin: 0 0 14px;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.feedback-meta {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.feedback-author {
+  justify-content: flex-start;
+  margin-bottom: 12px;
+}
+
+.feedback-author a,
+.feedback-author span {
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+
+.feedback-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pill-feedback-review {
+  background: rgba(255, 240, 214, 0.72);
+  color: #8a4e31;
+}
+
+.pill-feedback-planned {
+  background: rgba(255, 233, 214, 0.84);
+  color: #9e5b21;
+}
+
+.pill-feedback-progress {
+  background: rgba(233, 239, 255, 0.88);
+  color: #2f5db7;
+}
+
+.pill-feedback-shipped {
+  background: rgba(223, 246, 232, 0.88);
+  color: #2a7b4e;
+}
+
+.feedback-like-button.is-liked {
+  border-color: rgba(198, 88, 45, 0.32);
+  background: rgba(255, 240, 231, 0.9);
+}
+
+.feedback-comments {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0 0;
+}
+
+.feedback-comment {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(71, 57, 43, 0.08);
+}
+
+.feedback-comment strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.feedback-comment span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.feedback-comment p,
+.feedback-empty-comments {
+  margin: 0;
+  color: var(--muted);
+}
+
+.feedback-comment-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.feedback-signin-inline {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.feedback-signin-inline a {
+  color: #8a4e31;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 body.profile-page {
   --bg: #0d1020;
   --bg-soft: #171b33;
@@ -1288,5 +1458,15 @@ body.profile-page {
 
   .phone-card {
     min-height: auto;
+  }
+
+  .feedback-post {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .feedback-post-topline,
+  .feedback-actions {
+    align-items: flex-start;
   }
 }
