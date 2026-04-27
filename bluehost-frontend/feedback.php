@@ -52,7 +52,7 @@ function myurlc_render_feedback_post(array $post): void {
       </div>
       <div class="feedback-comments">
         <?php if (empty($comments)): ?>
-          <p class="feedback-empty-comments">No comments yet. Members can jump in once they sign in.</p>
+          <p class="feedback-empty-comments">No comments yet. People with a myurlc.com account can jump in once they sign in.</p>
         <?php else: ?>
           <?php foreach ($comments as $comment): ?>
             <?php $commentAuthor = is_array($comment['author'] ?? null) ? $comment['author'] : []; ?>
@@ -64,7 +64,7 @@ function myurlc_render_feedback_post(array $post): void {
           <?php endforeach; ?>
         <?php endif; ?>
       </div>
-      <div class="feedback-signin-inline"><a href="/signup">Create an account</a> or <a href="/login">log in</a> to comment.</div>
+      <div class="feedback-signin-inline"><a href="/signup">Create an account</a> or <a href="/login">log in</a> with your myurlc.com account to comment.</div>
     </article>
     <?php
 }
@@ -82,7 +82,7 @@ myurlc_render_topbar('feedback');
       <article class="hero-card feedback-hero-card">
         <p class="eyebrow">Public roadmap board</p>
         <h1>Help shape what myurlc.com builds next.</h1>
-        <p class="lead">Anyone can read the board. Members can post bugs, request features, like ideas, and add comments once they sign in.</p>
+        <p class="lead">Anyone can read the board. People with a myurlc.com account use that same login to post bugs, request features, like ideas, and add comments.</p>
 
         <div class="hero-badges feedback-stats" id="feedback-stats">
           <span><strong><?= myurlc_html((string) (($feedbackBoard['stats']['posts'] ?? 0))) ?></strong> posts</span>
@@ -90,7 +90,7 @@ myurlc_render_topbar('feedback');
           <span><strong><?= myurlc_html((string) (($feedbackBoard['stats']['likes'] ?? 0))) ?></strong> likes</span>
         </div>
 
-        <div class="message message-info" id="feedback-viewer-message">Public board is live. Sign in to post, like, and comment.</div>
+        <div class="message message-info" id="feedback-viewer-message">Public board is live. Use your myurlc.com account to post, like, and comment.</div>
       </article>
     </section>
 
@@ -127,10 +127,10 @@ myurlc_render_topbar('feedback');
       <div class="section-header-inline">
         <div>
           <p class="eyebrow">Member access</p>
-          <h2>Read everything. Interact once you have an account.</h2>
+          <h2>Read everything. Interact with your normal account.</h2>
         </div>
       </div>
-      <p class="section-copy">To keep the board useful and spam-free, posting, liking, and commenting are limited to signed-in members.</p>
+      <p class="section-copy">To keep the board useful and spam-free, posting, liking, and commenting are limited to people signed into their myurlc.com account. There is no separate feedback login.</p>
       <div class="button-row">
         <a class="btn btn-primary" href="/signup">Create an account</a>
         <a class="btn btn-secondary" href="/login">Log in</a>
@@ -141,7 +141,7 @@ myurlc_render_topbar('feedback');
       <div class="section-header-inline">
         <div>
           <p class="eyebrow">Live board</p>
-          <h2>What members are asking for</h2>
+          <h2>What users are asking for</h2>
         </div>
       </div>
 
@@ -149,12 +149,12 @@ myurlc_render_topbar('feedback');
         <?php if (!$feedbackResponse['ok']): ?>
           <div class="empty-state">
             <h3>Board unavailable right now</h3>
-            <p>The feedback board could not be loaded from the backend just yet. Refresh in a moment.</p>
+            <p>The feedback board could not be loaded right now. Refresh in a moment.</p>
           </div>
         <?php elseif (empty($feedbackBoard['posts'])): ?>
           <div class="empty-state">
             <h3>No public posts yet</h3>
-            <p>The first signed-in member to post feedback will set the tone for the board.</p>
+            <p>The first signed-in user to post feedback will set the tone for the board.</p>
           </div>
         <?php else: ?>
           <?php foreach ($feedbackBoard['posts'] as $post): ?>
@@ -223,7 +223,7 @@ myurlc_render_topbar('feedback');
               + '<div class="message message-info" data-form-message hidden></div>'
               + '<button class="btn btn-primary" type="submit">Comment</button>'
             + '</form>'
-          : '<div class="feedback-signin-inline"><a href="/signup">Create an account</a> or <a href="/login">log in</a> to comment.</div>';
+          : '<div class="feedback-signin-inline"><a href="/signup">Create an account</a> or <a href="/login">log in</a> with your myurlc.com account to comment.</div>';
 
         return '<article class="feedback-post" data-feedback-post-id="' + escapeHtml(post.id) + '">'
           + '<div class="feedback-post-topline">'
@@ -249,7 +249,7 @@ myurlc_render_topbar('feedback');
                     + '<p>' + nl2br(comment.body || '') + '</p>'
                   + '</article>';
                 }).join('')
-              : '<p class="feedback-empty-comments">No comments yet. Members can jump in once they sign in.</p>')
+              : '<p class="feedback-empty-comments">No comments yet. People with a myurlc.com account can jump in once they sign in.</p>')
           + '</div>'
           + commentForm
         + '</article>';
@@ -259,7 +259,7 @@ myurlc_render_topbar('feedback');
         renderStats(board);
         const posts = Array.isArray(board.posts) ? board.posts : [];
         if (!posts.length) {
-          boardRoot.innerHTML = '<div class="empty-state"><h3>No public posts yet</h3><p>The first signed-in member to post feedback will set the tone for the board.</p></div>';
+          boardRoot.innerHTML = '<div class="empty-state"><h3>No public posts yet</h3><p>The first signed-in user to post feedback will set the tone for the board.</p></div>';
           return;
         }
         boardRoot.innerHTML = posts.map(renderPost).join('');
@@ -272,8 +272,8 @@ myurlc_render_topbar('feedback');
           viewerMessage,
           isSignedIn ? 'success' : 'info',
           isSignedIn
-            ? 'You are signed in. Post ideas, like requests, and comment on updates.'
-            : 'Public board is live. Sign in to post, like, and comment.'
+            ? 'You are signed in with your myurlc.com account. Post ideas, like requests, and comment on updates.'
+            : 'Public board is live. Use your myurlc.com account to post, like, and comment.'
         );
       }
 

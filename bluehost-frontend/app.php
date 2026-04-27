@@ -5,7 +5,7 @@ require_once __DIR__ . '/frontend.php';
 
 myurlc_render_head(
     'Your dashboard',
-    'View your page status, referral link, and analytics summary from the Bluehost frontend.',
+    'View your page status, referral link, and analytics summary on myurlc.com.',
     myurlc_public_url('/app'),
     'app-page'
 );

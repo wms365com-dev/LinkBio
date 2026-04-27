@@ -15,7 +15,7 @@ myurlc_render_topbar('support');
     <section class="form-card card">
       <p class="eyebrow">Need help?</p>
       <h1 class="page-title">Send a ticket to <?= myurlc_html(MYURLC_SUPPORT_EMAIL) ?>.</h1>
-      <p class="page-copy">This form submits directly to the Railway backend so the ticket shows up in admin immediately.</p>
+      <p class="page-copy">Send a help request or report a bug. We will see it quickly and follow up by email.</p>
 
       <form class="form-stack" id="support-form">
         <div class="field-stack">

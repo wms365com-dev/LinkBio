@@ -5,7 +5,7 @@ require_once __DIR__ . '/frontend.php';
 
 myurlc_render_head(
     'Log in',
-    'Log in to manage your myurlc.com page from the Bluehost frontend and Railway backend.',
+    'Log in to update your page, links, and analytics on myurlc.com.',
     myurlc_public_url('/login'),
     'auth-page'
 );
@@ -15,7 +15,7 @@ myurlc_render_topbar('login');
     <section class="form-card card">
       <p class="eyebrow">Welcome back</p>
       <h1 class="page-title">Log in to your page.</h1>
-      <p class="page-copy">Your secure session is handled by Railway while this frontend stays on Bluehost.</p>
+      <p class="page-copy">Pick up where you left off and keep your page moving.</p>
 
       <form class="form-stack" id="login-form">
         <div class="field-stack">

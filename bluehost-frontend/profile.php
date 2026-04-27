@@ -17,7 +17,7 @@ if (!$response['ok'] || !is_array($response['data']) || empty($response['data'][
     $statusCode = $response['status'] === 404 ? 404 : 502;
     $message = $statusCode === 404
         ? 'This username is not live yet, or it has not been published.'
-        : 'The public page could not be loaded from the Railway backend right now.';
+        : 'The public page could not be loaded right now.';
     http_response_code($statusCode);
     myurlc_render_head($statusCode === 404 ? 'Page not found' : 'Page temporarily unavailable', $message, myurlc_public_url('/' . $slug), 'profile-page');
     ?>

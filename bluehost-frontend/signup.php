@@ -22,7 +22,7 @@ if ($refCode !== '') {
 
 myurlc_render_head(
     'Create your page',
-    'Create your myurlc.com page and connect to the Railway backend for login, analytics, and publishing.',
+    'Create your myurlc.com page, claim your username, and go live fast.',
     myurlc_public_url('/signup'),
     'auth-page'
 );
@@ -65,7 +65,7 @@ myurlc_render_topbar();
         <div class="field-stack">
           <label for="business_name">Business or creator name</label>
           <input id="business_name" name="business_name" placeholder="Optional if it matches your name" autocomplete="organization">
-          <small class="field-help">Optional. If you leave this blank, we’ll use your name for now.</small>
+          <small class="field-help">Optional. If you leave this blank, we'll use your name for now.</small>
         </div>
         <div class="field-stack">
           <label for="email">Email</label>

@@ -14,8 +14,8 @@ $founderOffer = is_array($configData['founder_offer'] ?? null) ? $configData['fo
 $recentSignups = is_array($configData['recent_signups'] ?? null) ? $configData['recent_signups'] : [];
 
 myurlc_render_head(
-    'Free link pages for businesses and creators',
-    'Create a polished myurlc.com page with custom links, social icons, lead capture, analytics, and a mobile layout that feels launch-ready.',
+    'Create a link page that turns clicks into signups',
+    'Create a polished myurlc.com page in minutes. Add your best links, offers, socials, and lead capture in one fast mobile-first page.',
     myurlc_public_url('/'),
     'home-page'
 );
@@ -39,39 +39,44 @@ myurlc_render_topbar();
           </p>
         </div>
 
-        <p class="eyebrow">Self-serve or done-for-you</p>
-        <h1>Build a sharper link page without the usual clutter.</h1>
+        <p class="eyebrow">Start free in minutes</p>
+        <h1>Turn one clean page into your best signup link.</h1>
         <p class="lead">
-          myurlc.com gives creators and small businesses a cleaner way to publish links, collect leads,
-          and look branded on mobile. Use the self-serve flow or keep your premium done-for-you setup offer.
+          Create one polished page for your links, offers, bookings, socials, and lead capture.
+          Go live fast, look branded, and give people one clear place to click.
         </p>
 
         <div class="hero-actions">
-          <a class="btn btn-primary" href="/signup">Create an account</a>
+          <a class="btn btn-primary" href="/signup">Start free</a>
           <a class="btn btn-secondary" href="/login">Log in</a>
           <a class="btn btn-ghost-home" href="/support">Need help?</a>
         </div>
 
         <div class="hero-badges">
           <span><?= !empty($founderOffer['is_open']) ? myurlc_html((string) ($founderOffer['remaining'] ?? 0)) . ' founder spots left' : 'Founder offer closed' ?></span>
-          <span>Mobile-first public pages</span>
-          <span>Lead capture and analytics</span>
+          <span>Launch in minutes</span>
+          <span>Mobile-first design</span>
           <span>Clean username URLs</span>
         </div>
 
-        <?php if (!empty($recentSignups)): ?>
-          <div class="announcement-card">
-            <p class="announcement-label">New signups</p>
-            <div class="announcement-feed">
+        <div class="announcement-card">
+          <p class="announcement-label">Why people join</p>
+          <div class="announcement-feed">
+            <?php if (!empty($recentSignups)): ?>
               <?php foreach (array_slice($recentSignups, 0, 3) as $item): ?>
                 <div class="announcement-item">
                   <strong><?= myurlc_html((string) ($item['business_name'] ?? 'New brand')) ?></strong>
                   <span><?= myurlc_html((string) ($item['relative_created_at'] ?? 'Just now')) ?></span>
                 </div>
               <?php endforeach; ?>
-            </div>
+            <?php else: ?>
+              <div class="announcement-item">
+                <strong>Founder spots are open now</strong>
+                <span>Start free today</span>
+              </div>
+            <?php endif; ?>
           </div>
-        <?php endif; ?>
+        </div>
       </article>
 
       <aside class="hero-preview-panel">
@@ -79,18 +84,18 @@ myurlc_render_topbar();
           <div class="phone-frame">
             <div class="phone-card phone-card-cream">
               <div class="phone-avatar"></div>
-              <p class="phone-title">Grey Wolf Logistics</p>
-              <p class="phone-copy">Overflow warehouse, same-day pallet help, custom quotes, and dispatch-ready contact links.</p>
-              <div class="phone-link phone-link-primary">Request a quote</div>
-              <div class="phone-link phone-link-secondary">Call now</div>
-              <div class="phone-link phone-link-soft">WhatsApp</div>
+              <p class="phone-title">Maya Bloom Studio</p>
+              <p class="phone-copy">Your best offers, booking links, socials, and signup buttons in one clean mobile page.</p>
+              <div class="phone-link phone-link-primary">Book now</div>
+              <div class="phone-link phone-link-secondary">Shop links</div>
+              <div class="phone-link phone-link-soft">Join list</div>
             </div>
           </div>
 
           <div class="preview-note-card">
             <p class="eyebrow">Business-first pages</p>
-            <h2>Built for leads, not just clicks.</h2>
-            <p>Let visitors tap WhatsApp, call, download a PDF, or send a quote request from one clean page.</p>
+            <h2>Built to turn profile traffic into signups.</h2>
+            <p>Give visitors one fast page for your best offer, newsletter, booking link, store, or social profile.</p>
           </div>
         </div>
       </aside>
@@ -107,8 +112,8 @@ myurlc_render_topbar();
         <div class="signup-proof-list">
           <?php if (empty($recentSignups)): ?>
             <div class="empty-state">
-              <h3>No signups yet</h3>
-              <p>Once new accounts come in, this section becomes instant social proof for the next visitor.</p>
+              <h3>Founder spots are still open</h3>
+              <p>Be one of the first featured pages and lock in the founder offer while it is still available.</p>
             </div>
           <?php else: ?>
             <?php foreach ($recentSignups as $item): ?>
@@ -128,7 +133,7 @@ myurlc_render_topbar();
         <div class="section-header-inline">
           <div>
             <p class="eyebrow">Referral loop</p>
-            <h2>Reward the users who bring the next one in.</h2>
+            <h2>Invite friends and earn free months.</h2>
           </div>
         </div>
         <div class="feature-list">
@@ -148,13 +153,13 @@ myurlc_render_topbar();
       </article>
       <article class="card card-step">
         <p class="card-number">02</p>
-        <h2>Customize the page</h2>
-        <p>Upload media, set the theme, add business-focused links, and publish when everything feels right.</p>
+        <h2>Add your best buttons</h2>
+        <p>Add your offers, socials, booking link, store, newsletter, or contact buttons in one place.</p>
       </article>
       <article class="card card-step">
         <p class="card-number">03</p>
-        <h2>Track what works</h2>
-        <p>Use analytics, lead capture, and referrals to see which links actually bring messages and customers.</p>
+        <h2>Share one page everywhere</h2>
+        <p>Use one clean link across Instagram, TikTok, email, and text so people always land in the right place.</p>
       </article>
     </section>
   </main>

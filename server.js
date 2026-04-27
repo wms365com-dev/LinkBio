@@ -4127,7 +4127,7 @@ app.post("/api/customer/feedback/posts", requireCustomerApi, (req, res) => {
   const category = sanitizeFeedbackCategory(req.body.category);
 
   if (title.length < 6) {
-    return respondApiError(res, 400, "Add a short title so other members know what this post is about.");
+    return respondApiError(res, 400, "Add a short title so other users know what this post is about.");
   }
 
   if (body.length < 20) {

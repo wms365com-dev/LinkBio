@@ -13,7 +13,7 @@ A Railway-ready Express app for selling done-for-you and self-serve link-in-bio 
 - Customer intake form with file upload
 - Admin login and order dashboard
 - Admin page editor for links, colors, status, and publish state
-- Public bio pages by username like `/greywolf`
+- Public bio pages by username like `/your-name`
 - SEO basics including canonical tags, `robots.txt`, and `sitemap.xml`
 - PostgreSQL-backed app data with a volume-backed JSON mirror
 - Volume-backed uploads for logos, profile media, and background images

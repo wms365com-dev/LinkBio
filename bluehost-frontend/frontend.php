@@ -189,7 +189,7 @@ function myurlc_render_topbar(string $active = ''): void {
       <a class="<?= $active === 'feedback' ? 'is-active' : '' ?>" href="/feedback">Feedback</a>
       <a class="<?= $active === 'support' ? 'is-active' : '' ?>" href="/support">Support</a>
       <a class="<?= $active === 'login' ? 'is-active' : '' ?>" href="/login">Log in</a>
-      <a class="btn btn-primary" href="/signup">Create your page</a>
+      <a class="btn btn-primary" href="/signup">Start free</a>
     </nav>
   </header>
 <?php
@@ -198,7 +198,7 @@ function myurlc_render_topbar(string $active = ''): void {
 function myurlc_render_footer(): void {
     ?>
   <footer class="site-footer">
-    <p>Fast pages, live analytics, public feedback, and lead capture on one stack.</p>
+    <p>One clean page for your links, offers, socials, bookings, and leads.</p>
     <p><a href="/feedback">Feedback board</a> <span class="footer-divider">|</span> <a href="/support">Support</a> <span class="footer-divider">|</span> <a href="mailto:<?= myurlc_html(MYURLC_SUPPORT_EMAIL) ?>"><?= myurlc_html(MYURLC_SUPPORT_EMAIL) ?></a></p>
   </footer>
 </div>
