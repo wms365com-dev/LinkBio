@@ -11,7 +11,7 @@
         </form>
       <% } else { %>
         <a class="btn btn-ghost" href="/login">Log In</a>
-        <a class="btn" href="/signup">Sign Up</a>
+        <a class="btn" href="/signup">Start free</a>
       <% } %>
     </div>
   </header>
@@ -28,38 +28,44 @@
           <p>
             <%= founderOffer.is_open
               ? `${founderOffer.remaining} founder spot${founderOffer.remaining === 1 ? "" : "s"} left. Early users get lifetime access automatically.`
-              : "The founding 500 has been claimed. New accounts still start with the regular free trial." %>
+              : `The founder offer is closed, but new users can still start with a ${trialDays}-day free trial.` %>
           </p>
         </div>
-        <p class="eyebrow">Self-serve or done-for-you</p>
-        <h1>Build a sharp link-in-bio page that feels launch-ready.</h1>
+        <p class="eyebrow">Start free in minutes</p>
+        <h1>Turn one clean page into your best signup link.</h1>
         <p class="lead">
-          Creators, personal brands, and small businesses can create an account, customize a link-in-bio page right away, and publish it themselves. The first <%= founderOffer.limit %> users are free for life, and everyone after that starts with a <%= trialDays %>-day free trial before moving to <%= planPriceDisplay %>.
+          Create one polished page for your links, offers, bookings, socials, and lead capture.
+          Go live fast, look branded, and give people one clear place to click.
         </p>
         <div class="actions">
-          <a class="btn" href="<%= currentCustomer ? (currentCustomer.can_access_studio ? '/studio' : '/billing') : '/signup' %>"><%= currentCustomer ? (currentCustomer.can_access_studio ? 'Open your studio' : 'Upgrade your account') : 'Create an account' %></a>
-          <a class="btn btn-secondary" href="/buy">Offer done-for-you setup</a>
+          <a class="btn" href="<%= currentCustomer ? (currentCustomer.can_access_studio ? '/studio' : '/billing') : '/signup' %>"><%= currentCustomer ? (currentCustomer.can_access_studio ? 'Open your studio' : 'Upgrade your account') : 'Start free' %></a>
+          <a class="btn btn-secondary" href="/buy">Need a done-for-you setup?</a>
         </div>
         <div class="hero-badges">
           <span><%= founderOffer.is_open ? `${founderOffer.remaining} founder spots left` : "Founder offer closed" %></span>
-          <span>Self-serve page builder</span>
-          <span>Customer signup + login</span>
-          <span>Admin-managed back office</span>
+          <span>Launch in minutes</span>
+          <span>Mobile-first design</span>
+          <span>Clean username URLs</span>
         </div>
 
-        <% if (recentSignups && recentSignups.length > 0) { %>
-          <div class="announcement-card">
-            <p class="announcement-label">New signups</p>
-            <div class="announcement-feed">
+        <div class="announcement-card">
+          <p class="announcement-label">Why people join</p>
+          <div class="announcement-feed">
+            <% if (recentSignups && recentSignups.length > 0) { %>
               <% recentSignups.slice(0, 3).forEach(item => { %>
                 <div class="announcement-item">
                   <strong><%= item.business_name %></strong>
                   <span><%= item.relative_created_at %></span>
                 </div>
               <% }) %>
-            </div>
+            <% } else { %>
+              <div class="announcement-item">
+                <strong>Founder spots are open now</strong>
+                <span>Start free today</span>
+              </div>
+            <% } %>
           </div>
-        <% } %>
+        </div>
       </div>
 
       <div class="hero-preview">
@@ -68,9 +74,9 @@
             <div class="phone-avatar"></div>
             <p class="phone-title">Maya Bloom Studio</p>
             <p class="phone-copy">Your best offers, booking links, socials, and signup buttons in one clean mobile page.</p>
-            <div class="phone-link">Book a quote</div>
-            <div class="phone-link phone-link-alt">Call now</div>
-            <div class="phone-link phone-link-soft">Instagram</div>
+            <div class="phone-link">Book now</div>
+            <div class="phone-link phone-link-alt">Shop links</div>
+            <div class="phone-link phone-link-soft">Join list</div>
           </div>
         </div>
       </div>
@@ -81,14 +87,14 @@
         <div class="section-header">
           <div>
             <p class="eyebrow">Just joined</p>
-            <h2>Show visitors fresh activity</h2>
+            <h2>Show visitors real momentum.</h2>
           </div>
         </div>
         <div class="signup-proof-list">
           <% if (!recentSignups || recentSignups.length === 0) { %>
             <div class="empty-state">
-              <h3>No signups yet</h3>
-              <p>Once accounts start coming in, this feed becomes social proof for new visitors.</p>
+              <h3>Founder spots are still open</h3>
+              <p>Be one of the first featured pages and lock in the founder offer while it is still available.</p>
             </div>
           <% } %>
 
@@ -108,7 +114,7 @@
         <div class="section-header">
           <div>
             <p class="eyebrow">Referral loop</p>
-            <h2>Reward customers for bringing the next one in</h2>
+            <h2>Invite friends and earn free months.</h2>
           </div>
         </div>
         <div class="feature-list">
@@ -116,25 +122,25 @@
           <div class="feature-item">Each successful referral earns 1 free month</div>
           <div class="feature-item">Rewards stack up to 12 months of free service</div>
         </div>
-        <a class="btn" href="<%= currentCustomer ? '/billing' : '/signup' %>"><%= currentCustomer ? 'Open referral tools' : 'Create an account' %></a>
+        <a class="btn" href="<%= currentCustomer ? '/billing' : '/signup' %>"><%= currentCustomer ? 'Open referral tools' : 'Start your page' %></a>
       </article>
     </section>
 
     <section class="grid three">
       <article class="card">
         <p class="card-number">01</p>
-        <h2>Customer signs up</h2>
-        <p>They create an account, claim their page, and start customizing immediately.</p>
+        <h2>Claim a username</h2>
+        <p>Start with a clean public URL like <strong>myurlc.com/username</strong> and make it instantly memorable.</p>
       </article>
       <article class="card">
         <p class="card-number">02</p>
-        <h2>Customer customizes</h2>
-        <p>They pick a theme, upload a logo, add buttons, and preview the page live.</p>
+        <h2>Add your best buttons</h2>
+        <p>Add your offers, socials, booking link, store, newsletter, or contact buttons in one place.</p>
       </article>
       <article class="card">
         <p class="card-number">03</p>
-        <h2>Publish or upsell</h2>
-        <p>Let them publish on their own, or keep your manual setup flow for premium service tiers.</p>
+        <h2>Share one page everywhere</h2>
+        <p>Use one clean link across Instagram, TikTok, email, and text so people always land in the right place.</p>
       </article>
     </section>
 

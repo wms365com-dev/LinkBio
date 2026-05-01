@@ -91,25 +91,41 @@ Open `http://localhost:3000`
 
 For local-only JSON fallback, leave `DATABASE_URL` blank.
 
-## Railway deployment
+## Recommended deployment: Railway only
+
+This app now runs best as a single Railway deployment:
+
+- `https://www.myurlc.com` serves the full app
+- `https://myurlc.com` redirects to `https://www.myurlc.com`
+- PostgreSQL stores app data
+- a Railway volume mounted to `/data` stores uploads and JSON recovery snapshots
+
+### Railway setup
 
 1. Push this folder to GitHub.
 2. Create a Railway project from that repo.
-3. Add a Railway PostgreSQL service and copy its `DATABASE_URL` into the app service.
-4. Add environment variables:
-   - `BASE_URL`
-   - `PUBLIC_WEB_URL`
-   - `APP_BASE_URL`
-   - `API_BASE_URL`
-   - `CORS_ALLOWED_ORIGINS`
-   - `DATABASE_URL`
-   - `DATABASE_SSL`
+3. Add a Railway PostgreSQL service.
+4. Add a persistent volume and mount it to `/data`.
+5. In the app service, set your public domain to `www.myurlc.com`.
+6. Point `myurlc.com` to a simple 301 redirect to `https://www.myurlc.com`.
+7. Add these core environment variables to the app service:
+
+```env
+BASE_URL=https://www.myurlc.com
+PUBLIC_WEB_URL=https://www.myurlc.com
+APP_BASE_URL=https://www.myurlc.com
+CORS_ALLOWED_ORIGINS=https://www.myurlc.com,https://myurlc.com
+SESSION_COOKIE_NAME=myurlc.sid
+SESSION_COOKIE_DOMAIN=myurlc.com
+SESSION_COOKIE_SAMESITE=lax
+SUPPORT_EMAIL=info@myurlc.com
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+DATABASE_SSL=require
+```
+
+8. Add your remaining secrets and billing settings:
    - `SESSION_SECRET`
-   - `SESSION_COOKIE_NAME`
-   - `SESSION_COOKIE_DOMAIN`
-   - `SESSION_COOKIE_SAMESITE`
    - `ADMIN_PASSWORD`
-   - `SUPPORT_EMAIL`
    - `SMTP_HOST`
    - `SMTP_PORT`
    - `SMTP_SECURE`
@@ -126,59 +142,30 @@ For local-only JSON fallback, leave `DATABASE_URL` blank.
    - `PLAN_PRICE_DISPLAY`
    - `BILLING_PRICE_ID`
    - `BILLING_CHECKOUT_MODE`
-5. Add a persistent volume and mount it to `/data`.
-6. Deploy.
+9. Deploy.
 
-Recommended Railway combo:
+### Why this is the recommended setup
 
-- PostgreSQL stores app data such as users, pages, referrals, leads, analytics, and tickets
-- The `/data` volume stores uploads and keeps a mirrored JSON snapshot for fallback/recovery
+- one frontend instead of two
+- no cross-host auth/cookie issues
+- simpler SEO and analytics
+- fewer caching and stale-file problems
+- faster product changes and safer rollouts
 
-## Bluehost + Railway split
+### If you are testing before the custom domain is live
 
-You can now run the public frontend on Bluehost while keeping the app logic and data on Railway.
+Use your Railway `*.up.railway.app` URL for:
 
-### Railway app
+- `BASE_URL`
+- `PUBLIC_WEB_URL`
+- `APP_BASE_URL`
+- `CORS_ALLOWED_ORIGINS`
 
-Use the Railway app as the backend/API host. Set these env vars:
+Then switch all four to `https://www.myurlc.com` after the custom domain is verified.
 
-- `PUBLIC_WEB_URL=https://www.myurlc.com`
-- `APP_BASE_URL=https://api.myurlc.com`
-- `CORS_ALLOWED_ORIGINS=https://www.myurlc.com,https://myurlc.com`
-- `SESSION_COOKIE_DOMAIN=myurlc.com`
+## Legacy split deployment
 
-If you are still testing on the default Railway URL instead of `api.myurlc.com`, leave `SESSION_COOKIE_DOMAIN` blank until the API subdomain is live.
-
-The Railway app now exposes JSON endpoints such as:
-
-- `GET /api/public/pages/:slug`
-- `POST /api/public/pages/:slug/view`
-- `POST /api/public/pages/:slug/lead`
-- `POST /api/auth/signup`
-- `POST /api/auth/login`
-- `POST /api/auth/forgot-password`
-- `GET /api/auth/reset-password`
-- `POST /api/auth/reset-password`
-- `GET /api/auth/me`
-- `GET /api/customer/page`
-- `GET /api/customer/analytics`
-- `GET /api/customer/export`
-- `POST /api/support`
-
-### Bluehost frontend
-
-Upload the files in [bluehost-frontend](/C:/LinkBio/linkbio-mvp/linkbio-mvp/bluehost-frontend) to Bluehost. That starter includes:
-
-- homepage
-- login/signup
-- forgot/reset password
-- dashboard shell
-- support page
-- public profile pages at `/username`
-- `.htaccess` rewrites
-- `robots.txt` and `sitemap.php`
-
-Edit [bluehost-frontend/config.php](/C:/LinkBio/linkbio-mvp/linkbio-mvp/bluehost-frontend/config.php) before upload so it points at your Railway backend host.
+The [bluehost-frontend](/C:/LinkBio/linkbio-mvp/linkbio-mvp/bluehost-frontend) folder still exists if you need the old Bluehost + Railway split temporarily, but it is now considered a legacy fallback rather than the recommended production setup.
 
 ## Storage behavior
 

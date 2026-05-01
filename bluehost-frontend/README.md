@@ -1,9 +1,21 @@
-# Bluehost Frontend
+# Bluehost Frontend (Legacy Split Mode)
 
-This folder gives you a split setup:
+This folder is kept as a fallback if you temporarily need the old split setup:
 
 - Bluehost serves the public frontend
 - Railway runs the app/backend and PostgreSQL
+
+## Status
+
+This is no longer the recommended production setup for `myurlc.com`.
+
+The preferred setup is now:
+
+- `www.myurlc.com` on Railway
+- `myurlc.com` redirecting to `https://www.myurlc.com`
+- PostgreSQL + `/data` volume on Railway
+
+Use this folder only if you intentionally want the split-host architecture for a transition period.
 
 ## What this frontend includes
 
@@ -11,7 +23,7 @@ This folder gives you a split setup:
 - `signup.php` and `login.php` that talk to the Railway API
 - `forgot-password.php` and `reset-password.php` for account recovery
 - `app.php` customer dashboard shell
-- `feedback.php` public feedback board with member-only posting, likes, and comments
+- `feedback.php` public feedback board with account-only posting, likes, and comments
 - `profile.php` public pages at `https://www.myurlc.com/username`
 - `support.php` ticket form
 - `robots.txt` and `sitemap.php`
@@ -52,4 +64,4 @@ If you do not have `api.myurlc.com` yet, use your Railway URL for `APP_BASE_URL`
 
 ## Important note
 
-The public page and account shell now work cross-host through JSON APIs. The existing full editor, billing, admin, and analytics pages still remain available on the Railway app so you can move them over in phases instead of breaking live users.
+The public page and account shell work cross-host through JSON APIs. The full editor, billing, admin, and analytics pages still remain available on the Railway app so you can move them over in phases if needed.
