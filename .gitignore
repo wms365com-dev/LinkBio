@@ -1,8 +1,40 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and package-manager cache
 node_modules/
 .npm-cache/
-.env
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Local data and uploads
 data/
 *.db
 *.sqlite
-npm-debug.log*
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Cache and temp files
+.cache/
+.tmp/
+tmp/
+temp/
+*.tmp
 .tmp-*
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

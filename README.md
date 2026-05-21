@@ -1,41 +1,41 @@
 # LinkBio MVP
 
-A Railway-ready Express app for selling done-for-you and self-serve link-in-bio pages.
-
-## What it includes
-
-- Marketing landing page
-- Customer signup and login
-- Forgot-password and reset-password flow
-- 7-day customer free trial with billing gate
-- Self-serve page studio with publish/unpublish controls
-- Stripe Checkout starter flow
-- Customer intake form with file upload
-- Admin login and order dashboard
-- Admin page editor for links, colors, status, and publish state
-- Public bio pages by username like `/your-name`
-- SEO basics including canonical tags, `robots.txt`, and `sitemap.xml`
-- PostgreSQL-backed app data with a volume-backed JSON mirror
-- Volume-backed uploads for logos, profile media, and background images
+Railway-ready Express app for `myurlc.com`, a custom link-in-bio SaaS MVP. Users can sign up, edit and publish a public profile page, collect leads, review analytics, send support tickets, post feedback, and start Stripe Checkout billing flows.
 
 ## Stack
 
-- Node.js
-- Express
+- Node.js `>=20`
+- npm
+- Express 4
 - EJS
-- PostgreSQL
-- Stripe
-- Railway
+- PostgreSQL on Railway, with local JSON fallback
+- Stripe Checkout
+- Nodemailer SMTP
+- Railway hosting
 
-## Local setup
+## Local Setup
 
-1. Install dependencies
+1. Install Node.js 20 or newer and Git.
+2. Clone the repo.
+3. Enter the project folder:
+
+```bash
+cd linkbio-mvp
+```
+
+If you are on the original audited computer, the repo path is:
+
+```powershell
+cd C:\LinkBio\linkbio-mvp\linkbio-mvp
+```
+
+4. Install dependencies:
 
 ```bash
 npm install
 ```
 
-2. Copy the environment file
+5. Create your local environment file:
 
 PowerShell:
 
@@ -49,68 +49,104 @@ macOS/Linux:
 cp .env.example .env
 ```
 
-3. Fill in the values you want to use
+6. Fill `.env` manually. Do not commit it.
 
-- `BASE_URL`
-- `PUBLIC_WEB_URL`
-- `APP_BASE_URL`
-- `API_BASE_URL`
-- `CORS_ALLOWED_ORIGINS`
-- `DATABASE_URL`
-- `DATABASE_SSL`
-- `SESSION_SECRET`
-- `SESSION_COOKIE_NAME`
-- `SESSION_COOKIE_DOMAIN`
-- `SESSION_COOKIE_SAMESITE`
-- `ADMIN_PASSWORD`
-- `SUPPORT_EMAIL`
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_SECURE`
-- `SMTP_USER`
-- `SMTP_PASSWORD`
-- `SMTP_FROM`
-- `PASSWORD_RESET_TOKEN_TTL_MINUTES`
-- `STRIPE_SECRET_KEY`
-- `STRIPE_PRICE_ID`
-- `OFFER_PRICE_DISPLAY`
-- `TRIAL_DAYS`
-- `FOUNDING_MEMBER_LIMIT`
-- `PLAN_NAME`
-- `PLAN_PRICE_DISPLAY`
-- `BILLING_PRICE_ID`
-- `BILLING_CHECKOUT_MODE`
+For local JSON fallback, leave `DATABASE_URL` blank. For PostgreSQL, set `DATABASE_URL` and `DATABASE_SSL`.
 
-4. Run the app
+Minimum useful local values:
+
+```env
+PORT=3000
+NODE_ENV=development
+BASE_URL=http://localhost:3000
+PUBLIC_WEB_URL=http://localhost:3000
+APP_BASE_URL=http://localhost:3000
+CORS_ALLOWED_ORIGINS=http://localhost:3000
+DATABASE_URL=
+DATABASE_SSL=disable
+SESSION_SECRET=
+SESSION_COOKIE_NAME=myurlc.sid
+SESSION_COOKIE_DOMAIN=
+SESSION_COOKIE_SAMESITE=lax
+ADMIN_PASSWORD=
+SUPPORT_EMAIL=info@myurlc.com
+SMTP_PORT=587
+SMTP_SECURE=false
+PASSWORD_RESET_TOKEN_TTL_MINUTES=60
+TRIAL_DAYS=7
+PLAN_ACCESS_DAYS=30
+FOUNDING_MEMBER_LIMIT=500
+REFERRAL_BONUS_MONTHS_MAX=12
+PAGE_REVISION_LIMIT=25
+```
+
+Generate your own `SESSION_SECRET` and `ADMIN_PASSWORD`. Add Stripe and SMTP values only when testing those workflows.
+
+7. Run the syntax check:
+
+```bash
+npm run check
+```
+
+8. Start the app:
 
 ```bash
 npm start
 ```
 
-Open `http://localhost:3000`
+9. Open `http://localhost:3000`.
 
-For local-only JSON fallback, leave `DATABASE_URL` blank.
+## Scripts
 
-## Recommended deployment: Railway only
+```bash
+npm run check
+npm start
+npm run dev
+```
 
-This app now runs best as a single Railway deployment:
+`npm run dev` currently starts the same server as `npm start`.
 
-- `https://www.myurlc.com` serves the full app
-- `https://myurlc.com` redirects to `https://www.myurlc.com`
-- PostgreSQL stores app data
-- a Railway volume mounted to `/data` stores uploads and JSON recovery snapshots
+## Key Routes
 
-### Railway setup
+- `/` marketing page
+- `/signup` customer signup
+- `/login` customer login
+- `/studio` customer page editor
+- `/analytics` customer analytics
+- `/billing` billing page
+- `/support` support ticket form
+- `/feedback` feedback board
+- `/admin/login` admin login
+- `/:slug` public profile page
+- `/health` and `/api/health` health checks
 
-1. Push this folder to GitHub.
-2. Create a Railway project from that repo.
-3. Add a Railway PostgreSQL service.
-4. Add a persistent volume and mount it to `/data`.
-5. In the app service, set your public domain to `www.myurlc.com`.
-6. Point `myurlc.com` to a simple 301 redirect to `https://www.myurlc.com`.
-7. Add these core environment variables to the app service:
+## Data and Uploads
+
+- Railway PostgreSQL is used when `DATABASE_URL` is set.
+- The app creates the PostgreSQL snapshot table on startup.
+- Railway upload/data volume should be mounted to `/data`.
+- Local JSON fallback writes to `./data/linkbio.json`.
+- Local uploads write to `./data/uploads`.
+- `data/` is ignored by Git.
+
+## Railway Deployment
+
+Railway can deploy this app directly from GitHub using Nixpacks.
+
+Recommended production setup:
+
+1. Connect Railway to this GitHub repo.
+2. Add a PostgreSQL service.
+3. Add a persistent volume mounted at `/data`.
+4. Set `www.myurlc.com` as the Railway app domain.
+5. Redirect `myurlc.com` to `https://www.myurlc.com`.
+6. Add Railway environment variables.
+7. Deploy and verify `/health`.
+
+Recommended production variables:
 
 ```env
+NODE_ENV=production
 BASE_URL=https://www.myurlc.com
 PUBLIC_WEB_URL=https://www.myurlc.com
 APP_BASE_URL=https://www.myurlc.com
@@ -123,91 +159,14 @@ DATABASE_URL=${{Postgres.DATABASE_URL}}
 DATABASE_SSL=require
 ```
 
-8. Add your remaining secrets and billing settings:
-   - `SESSION_SECRET`
-   - `ADMIN_PASSWORD`
-   - `SMTP_HOST`
-   - `SMTP_PORT`
-   - `SMTP_SECURE`
-   - `SMTP_USER`
-   - `SMTP_PASSWORD`
-   - `SMTP_FROM`
-   - `PASSWORD_RESET_TOKEN_TTL_MINUTES`
-   - `STRIPE_SECRET_KEY`
-   - `STRIPE_PRICE_ID`
-   - `OFFER_PRICE_DISPLAY`
-   - `TRIAL_DAYS`
-   - `FOUNDING_MEMBER_LIMIT`
-   - `PLAN_NAME`
-   - `PLAN_PRICE_DISPLAY`
-   - `BILLING_PRICE_ID`
-   - `BILLING_CHECKOUT_MODE`
-9. Deploy.
+Add secret values in Railway only, including `SESSION_SECRET`, `ADMIN_PASSWORD`, SMTP credentials, and Stripe secret keys.
 
-### Why this is the recommended setup
+## Legacy Bluehost Frontend
 
-- one frontend instead of two
-- no cross-host auth/cookie issues
-- simpler SEO and analytics
-- fewer caching and stale-file problems
-- faster product changes and safer rollouts
+`bluehost-frontend/` is an older PHP frontend for a split Bluehost + Railway deployment. The current recommended setup is Railway-only. See `bluehost-frontend/README.md` if you intentionally need split-host mode.
 
-### If you are testing before the custom domain is live
+## Do Not Commit Secrets
 
-Use your Railway `*.up.railway.app` URL for:
+Never commit `.env`, database URLs, SMTP passwords, Stripe secret keys, admin passwords, production data exports, or uploaded customer files.
 
-- `BASE_URL`
-- `PUBLIC_WEB_URL`
-- `APP_BASE_URL`
-- `CORS_ALLOWED_ORIGINS`
-
-Then switch all four to `https://www.myurlc.com` after the custom domain is verified.
-
-## Legacy split deployment
-
-The [bluehost-frontend](/C:/LinkBio/linkbio-mvp/linkbio-mvp/bluehost-frontend) folder still exists if you need the old Bluehost + Railway split temporarily, but it is now considered a legacy fallback rather than the recommended production setup.
-
-## Storage behavior
-
-- App data lives in PostgreSQL when `DATABASE_URL` is set
-- A mirrored JSON snapshot is also written to `/data/linkbio.json` on Railway, or `./data/linkbio.json` locally
-- Uploaded images path: `/data/uploads` on Railway, or `./data/uploads` locally
-- Public upload URLs are served from `/uploads/...`
-- If PostgreSQL is unavailable, the app falls back to the volume JSON snapshot
-- Admin sessions use Express session memory, so they reset after a restart or deploy
-- Customer accounts default to a 7-day in-app trial unless you change `TRIAL_DAYS`
-- The founder offer defaults to the first 500 users unless you change `FOUNDING_MEMBER_LIMIT`
-- Page revisions keep the latest 25 restore points per page so you can roll back content changes safely
-
-## Safe rollout workflow
-
-To keep improving the product without hurting live users:
-
-1. Use one Railway environment for staging and one for production.
-2. Test new changes in staging against the same feature flow users rely on:
-   - signup
-   - studio save/publish
-   - public page
-   - analytics
-   - billing
-3. Deploy production only after staging passes.
-4. If a page-level change causes a problem, use the admin order screen to restore a previous page version.
-5. Keep PostgreSQL enabled for app data and the `/data` volume mounted for uploads and JSON recovery.
-
-## Health endpoint
-
-`/health` now reports whether PostgreSQL is configured and whether the app is currently using PostgreSQL or the volume JSON fallback for app data.
-
-## Admin login
-
-Visit `/admin/login`
-
-The password is the value of `ADMIN_PASSWORD`.
-
-## Suggested next upgrades
-
-- Email notifications when a new order lands
-- Customer self-serve edit access
-- QR codes and simple click analytics
-- Multiple pricing tiers
-- Custom domains for clients
+For full context before moving computers, read `HANDOFF.md` and `SETUP_NEW_COMPUTER.md`.
