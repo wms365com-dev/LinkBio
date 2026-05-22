@@ -153,7 +153,27 @@
         <option value="Call Now"></option>
       </datalist>
 
+      <script type="application/json" id="starter-template-data"><%- JSON.stringify(starterTemplateOptions) %></script>
+
       <form method="POST" action="/studio" enctype="multipart/form-data" class="form-stack">
+        <div class="starter-template-panel">
+          <div class="section-header compact-header">
+            <div>
+              <p class="eyebrow">Quick start</p>
+              <h2>Apply a starter layout</h2>
+              <p class="section-copy">Fill your bio, theme, lead form, and starter link labels in one click.</p>
+            </div>
+          </div>
+          <div class="starter-picker studio-starter-grid">
+            <% starterTemplateOptions.forEach(option => { %>
+              <button class="starter-choice" type="button" data-apply-starter="<%= option.value %>">
+                <strong><%= option.label %></strong>
+                <span><%= option.description %></span>
+              </button>
+            <% }) %>
+          </div>
+        </div>
+
         <div class="form-grid two studio-section" id="studio-profile">
           <div>
             <label>Full name</label>
@@ -173,7 +193,8 @@
           </div>
           <div>
             <label>Public username</label>
-            <input name="slug" value="<%= values.slug %>" placeholder="your-brand" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" minlength="3" maxlength="32" autocapitalize="off" spellcheck="false" />
+            <input name="slug" value="<%= values.slug %>" placeholder="your-brand" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" minlength="3" maxlength="32" autocapitalize="off" spellcheck="false" data-username-check />
+            <p class="username-status" data-username-status aria-live="polite"></p>
             <p class="field-hint">Use 3-32 lowercase letters, numbers, or hyphens only. This becomes your page URL and must be unique.</p>
           </div>
         </div>

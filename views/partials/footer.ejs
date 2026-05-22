@@ -17,6 +17,145 @@
     link.setAttribute("href", `/support?from=${encodeURIComponent(currentPath)}`);
   });
 
+  document.querySelectorAll("[data-template-choice]").forEach((button) => {
+    const form = button.closest("form");
+    const input = form?.querySelector("[data-starter-template-input]");
+    if (!form || !input) {
+      return;
+    }
+
+    button.addEventListener("click", () => {
+      input.value = button.dataset.templateChoice || "service";
+      form.querySelectorAll("[data-template-choice]").forEach((choice) => {
+        choice.classList.toggle("is-active", choice === button);
+      });
+    });
+  });
+
+  document.querySelectorAll("[data-username-check]").forEach((input) => {
+    const form = input.closest("form");
+    const status = form?.querySelector("[data-username-status]");
+    let timer = null;
+    let requestNumber = 0;
+
+    const setStatus = (message, state = "") => {
+      if (!status) {
+        return;
+      }
+      status.textContent = message || "";
+      status.classList.remove("is-good", "is-bad", "is-muted");
+      if (state) {
+        status.classList.add(state);
+      }
+    };
+
+    const checkUsername = async () => {
+      const value = input.value.trim();
+      requestNumber += 1;
+      const currentRequest = requestNumber;
+
+      if (!value) {
+        setStatus("", "");
+        return;
+      }
+
+      setStatus("Checking username...", "is-muted");
+      try {
+        const response = await fetch(`/api/username/${encodeURIComponent(value)}`, {
+          headers: { "Accept": "application/json" }
+        });
+        const result = await response.json();
+        if (currentRequest !== requestNumber) {
+          return;
+        }
+        setStatus(result.message || "", result.available ? "is-good" : "is-bad");
+      } catch (error) {
+        if (currentRequest === requestNumber) {
+          setStatus("Could not check that username right now.", "is-bad");
+        }
+      }
+    };
+
+    input.addEventListener("input", () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(checkUsername, 280);
+    });
+
+    input.addEventListener("blur", checkUsername);
+
+    if (input.value.trim()) {
+      checkUsername();
+    }
+  });
+
+  const starterTemplateNode = document.getElementById("starter-template-data");
+  if (starterTemplateNode) {
+    let starterTemplates = [];
+    try {
+      starterTemplates = JSON.parse(starterTemplateNode.textContent || "[]");
+    } catch (error) {
+      starterTemplates = [];
+    }
+
+    document.querySelectorAll("[data-apply-starter]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const template = starterTemplates.find((item) => item.value === button.dataset.applyStarter);
+        const form = button.closest("form");
+        if (!template || !form) {
+          return;
+        }
+
+        const setValue = (selector, value) => {
+          const field = form.querySelector(selector);
+          if (!field) {
+            return;
+          }
+          if (field.type === "checkbox") {
+            field.checked = Boolean(value);
+          } else {
+            field.value = value || "";
+          }
+          field.dispatchEvent(new Event("change", { bubbles: true }));
+        };
+
+        setValue("[name='bio']", template.bio);
+        setValue("[name='theme']", template.theme);
+        setValue("[name='accent_color']", template.accent_color);
+        setValue("[name='lead_form_enabled']", template.lead_form_enabled);
+        setValue("[name='lead_form_prompt']", template.lead_form_prompt);
+
+        const rows = Array.from(form.querySelectorAll("[data-link-row]"));
+        (template.links || []).forEach((link, index) => {
+          const row = rows[index];
+          if (!row) {
+            return;
+          }
+
+          row.classList.remove("is-hidden-empty");
+          const section = row.querySelector("[name='link_section']");
+          const label = row.querySelector("[name='link_label']");
+          const url = row.querySelector("[name='link_url']");
+          if (section) {
+            section.value = link.section || "featured";
+          }
+          if (label) {
+            label.value = link.label || "";
+          }
+          if (url) {
+            url.value = "";
+            const placeholder = String(link.placeholder || "");
+            const needsScheme = placeholder && !placeholder.includes("@") && !placeholder.startsWith("+") && !/^[a-z]+:/i.test(placeholder);
+            url.placeholder = placeholder ? `${needsScheme ? "https://" : ""}${placeholder}` : "https://yourdomain.com";
+          }
+        });
+
+        form.querySelectorAll("[data-apply-starter]").forEach((choice) => {
+          choice.classList.toggle("is-active", choice === button);
+        });
+      });
+    });
+  }
+
   document.querySelectorAll("[data-link-builder]").forEach((builder) => {
     const revealButton = builder.querySelector("[data-reveal-links]");
     const rows = Array.from(builder.querySelectorAll("[data-link-row]"));

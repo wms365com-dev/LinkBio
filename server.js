@@ -86,6 +86,60 @@ const SOCIAL_LINK_SUGGESTIONS = [
   { label: "Custom Link", placeholder: "yourdomain.com/anything" }
 ];
 
+const STARTER_TEMPLATES = [
+  {
+    value: "service",
+    label: "Service pro",
+    description: "Booking, quote requests, proof, and lead capture for coaches, consultants, stylists, and contractors.",
+    theme: "linen",
+    accent_color: "#2563eb",
+    bio: "I help people solve a specific problem with simple next steps, clear offers, and fast follow-up.",
+    lead_form_enabled: true,
+    lead_form_prompt: "Tell me what you need help with",
+    links: [
+      { label: "Book a call", placeholder: "calendly.com/yourname/intro", section: "offers" },
+      { label: "Request a quote", placeholder: "yourdomain.com/contact", section: "offers" },
+      { label: "Client results", placeholder: "yourdomain.com/results", section: "featured" },
+      { label: "Instagram", placeholder: "instagram.com/yourname", section: "social" },
+      { label: "Email me", placeholder: "hello@yourdomain.com", section: "contact" }
+    ]
+  },
+  {
+    value: "creator",
+    label: "Creator",
+    description: "Latest drop, fan list, socials, merch, and featured content for creators and musicians.",
+    theme: "sunset",
+    accent_color: "#e76f51",
+    bio: "Follow my latest work, join the list, and find everything I am sharing right now.",
+    lead_form_enabled: true,
+    lead_form_prompt: "Join my list or send a collaboration note",
+    links: [
+      { label: "Latest video", placeholder: "youtube.com/@yourchannel", section: "featured" },
+      { label: "Join the newsletter", placeholder: "yourdomain.com/newsletter", section: "offers" },
+      { label: "Shop merch", placeholder: "yourdomain.com/shop", section: "offers" },
+      { label: "Instagram", placeholder: "instagram.com/yourname", section: "social" },
+      { label: "TikTok", placeholder: "tiktok.com/@yourname", section: "social" }
+    ]
+  },
+  {
+    value: "local",
+    label: "Local business",
+    description: "Menu, directions, phone, specials, and inquiries for shops, restaurants, salons, and venues.",
+    theme: "midnight",
+    accent_color: "#13d69b",
+    bio: "Find our best links, current specials, hours, directions, and the fastest way to reach us.",
+    lead_form_enabled: true,
+    lead_form_prompt: "Send us a quick question or request",
+    links: [
+      { label: "Current specials", placeholder: "yourdomain.com/specials", section: "featured" },
+      { label: "Menu or services", placeholder: "yourdomain.com/menu", section: "offers" },
+      { label: "Get directions", placeholder: "google.com/maps/place/your-business", section: "contact" },
+      { label: "Call now", placeholder: "+1 555 555 5555", section: "contact" },
+      { label: "Facebook", placeholder: "facebook.com/yourpage", section: "social" }
+    ]
+  }
+];
+
 const FEEDBACK_CATEGORY_OPTIONS = [
   { value: "bug", label: "Bug" },
   { value: "feature", label: "Feature request" },
@@ -477,6 +531,26 @@ function sanitizeAccentColor(value) {
 function sanitizeLeadPrompt(value) {
   const trimmed = String(value || "").trim();
   return trimmed ? trimmed.slice(0, 140) : "Send me a quick message";
+}
+
+function normalizeStarterTemplateKey(value) {
+  const candidate = String(value || "").trim().toLowerCase();
+  return STARTER_TEMPLATES.some((template) => template.value === candidate) ? candidate : "service";
+}
+
+function getStarterTemplate(value) {
+  const normalized = normalizeStarterTemplateKey(value);
+  return STARTER_TEMPLATES.find((template) => template.value === normalized) || STARTER_TEMPLATES[0];
+}
+
+function buildStarterTemplateOptions() {
+  return STARTER_TEMPLATES.map((template) => ({
+    ...template,
+    links: template.links.map((link) => ({
+      ...link,
+      section: normalizeLinkSection(link.section)
+    }))
+  }));
 }
 
 function normalizeBaseUrl(value) {
@@ -2671,6 +2745,73 @@ function isUsernameAvailable(slug, orderIdToIgnore = null) {
   return !existing || String(existing.order_id || "") === String(orderIdToIgnore || "");
 }
 
+function buildUsernameAvailability(value, options = {}) {
+  const raw = String(value || "").trim();
+  const normalized = normalizeUsername(raw);
+
+  if (!raw) {
+    return {
+      slug: null,
+      suggestion: null,
+      valid: false,
+      available: false,
+      message: "Type a username to check availability."
+    };
+  }
+
+  if (!normalized) {
+    return {
+      slug: null,
+      suggestion: null,
+      valid: false,
+      available: false,
+      message: "Use lowercase letters, numbers, and hyphens only."
+    };
+  }
+
+  if (raw !== normalized) {
+    return {
+      slug: normalized,
+      suggestion: normalized,
+      valid: false,
+      available: false,
+      message: `Try "${normalized}".`
+    };
+  }
+
+  const validation = validateExplicitUsername(raw);
+  if (validation.error) {
+    return {
+      slug: validation.slug || normalized,
+      suggestion: normalized,
+      valid: false,
+      available: false,
+      message: validation.error
+    };
+  }
+
+  if (isReservedUsername(validation.slug)) {
+    return {
+      slug: validation.slug,
+      suggestion: null,
+      valid: true,
+      available: false,
+      message: `"${validation.slug}" is reserved.`
+    };
+  }
+
+  const available = isUsernameAvailable(validation.slug, options.orderIdToIgnore || null);
+  return {
+    slug: validation.slug,
+    suggestion: null,
+    valid: true,
+    available,
+    message: available
+      ? `${validation.slug} is available.`
+      : `${validation.slug} is already taken.`
+  };
+}
+
 function resolveSlugSelection(requestedValue, fallbackValue, options = {}) {
   const requestedSlug = String(requestedValue || "").trim();
   const fallbackSlug = normalizeUsername(fallbackValue || "");
@@ -3063,6 +3204,8 @@ function buildCustomerValues(body = {}) {
     full_name: fullName,
     business_name: businessName,
     email: normalizeEmail(body.email),
+    slug: normalizeUsername(body.slug),
+    starter_template: normalizeStarterTemplateKey(body.starter_template || body.template),
     referral_code: sanitizeReferralCode(body.referral_code)
   };
 }
@@ -3199,14 +3342,18 @@ function requireGuestApi(req, res, next) {
   return next();
 }
 
-function ensureCustomerPage(user) {
+function ensureCustomerPage(user, options = {}) {
   const existing = getOrderByOwnerUserId(user.id);
   if (existing) {
     return existing;
   }
 
+  const starterTemplate = getStarterTemplate(options.starterTemplate || options.starter_template);
   const slugBase = makeSlug(user.business_name || user.name || `page-${user.id}`);
-  const slug = ensureUniqueSlug(slugBase);
+  const requestedSlug = normalizeUsername(options.slug || "");
+  const slug = requestedSlug && isUsernameAvailable(requestedSlug)
+    ? requestedSlug
+    : ensureUniqueSlug(slugBase);
 
   return createOrder({
     owner_user_id: user.id,
@@ -3215,14 +3362,16 @@ function ensureCustomerPage(user) {
     full_name: user.name,
     business_name: user.business_name || user.name,
     slug,
-    bio: "",
+    bio: starterTemplate.bio,
     phone: "",
+    lead_form_enabled: starterTemplate.lead_form_enabled ? 1 : 0,
+    lead_form_prompt: starterTemplate.lead_form_prompt,
     profile_image: null,
     profile_media: null,
     profile_media_type: null,
     background_image: null,
-    theme: "midnight",
-    accent_color: "#2563eb",
+    theme: starterTemplate.theme,
+    accent_color: starterTemplate.accent_color,
     links_json: "[]",
     status: "draft",
     payment_status: "manual",
@@ -3681,6 +3830,7 @@ app.use((req, res, next) => {
   res.locals.themeOptions = THEME_OPTIONS;
   res.locals.linkSectionOptions = LINK_SECTION_OPTIONS;
   res.locals.socialLinkSuggestions = SOCIAL_LINK_SUGGESTIONS;
+  res.locals.starterTemplateOptions = buildStarterTemplateOptions();
   res.locals.supportEmail = SUPPORT_EMAIL;
   res.locals.buildPhoneContactActions = buildPhoneContactActions;
   res.locals.iconSvg = iconSvg;
@@ -3837,6 +3987,19 @@ app.get("/api/config", (req, res) => {
     founder_offer: getFoundingOfferStats(),
     recent_signups: buildRecentSignupFeed(6),
     manage: buildCustomerManageUrls()
+  });
+});
+
+app.get("/api/username/:slug", (req, res) => {
+  const customer = getCurrentCustomer(req);
+  const ownedOrder = customer ? getOrderByOwnerUserId(customer.id) : null;
+  const availability = buildUsernameAvailability(req.params.slug, {
+    orderIdToIgnore: ownedOrder?.id || null
+  });
+
+  return res.json({
+    ok: true,
+    ...availability
   });
 });
 
@@ -3997,6 +4160,11 @@ app.post("/api/auth/signup", requireGuestApi, (req, res) => {
     return respondApiError(res, 400, "You cannot use your own referral code for this account.");
   }
 
+  const slugSelection = resolveSlugSelection(values.slug, values.business_name);
+  if (slugSelection.error) {
+    return respondApiError(res, 400, slugSelection.error);
+  }
+
   const user = createUser({
     name: values.full_name,
     business_name: values.business_name,
@@ -4009,7 +4177,10 @@ app.post("/api/auth/signup", requireGuestApi, (req, res) => {
     applyReferralReward(referrer.id);
   }
 
-  ensureCustomerPage(user);
+  ensureCustomerPage(user, {
+    slug: slugSelection.slug,
+    starterTemplate: values.starter_template
+  });
   req.session.customerUserId = user.id;
   const nextRedirectUrl = buildCustomerEntryRedirect(user);
 
@@ -4339,13 +4510,21 @@ app.post("/support", (req, res) => {
 app.get("/signup", requireGuest, (req, res) => {
   const referralCode = sanitizeReferralCode(req.query.ref || "");
   const referrer = getUserByReferralCode(referralCode);
+  const requestedSlug = normalizeUsername(req.query.slug || req.query.username || "");
+  const slugIsAvailable = requestedSlug ? isUsernameAvailable(requestedSlug) : true;
+  const starterTemplate = getStarterTemplate(req.query.template || req.query.starter_template);
 
   renderAuthPage(res, "signup", {
     pageTitle: "Start Your Free Link in Bio Page",
     values: {
+      slug: requestedSlug,
+      starter_template: starterTemplate.value,
       referral_code: referrer ? referrer.referral_code : referralCode
     },
-    info: referrer ? `Referred by ${referrer.business_name || referrer.name}.` : null,
+    info: referrer
+      ? `Referred by ${referrer.business_name || referrer.name}.`
+      : (requestedSlug && slugIsAvailable ? `${requestedSlug} is available. Create your account to claim it.` : null),
+    error: requestedSlug && !slugIsAvailable ? `The username "${requestedSlug}" is already taken or reserved. Try another one.` : null,
     seo: {
       canonicalUrl: absoluteUrl("/signup"),
       metaDescription: "Create your free myurlc.com link in bio page. The first 500 users get lifetime access, and everyone else starts with a free trial."
@@ -4431,6 +4610,20 @@ app.post("/signup", requireGuest, (req, res) => {
     });
   }
 
+  const slugSelection = resolveSlugSelection(values.slug, values.business_name);
+  if (slugSelection.error) {
+    return renderAuthPage(res, "signup", {
+      statusCode: 400,
+      pageTitle: "Start Your Free Link in Bio Page",
+      error: slugSelection.error,
+      values,
+      seo: {
+        canonicalUrl: absoluteUrl("/signup"),
+        metaDescription: "Create your free myurlc.com link in bio page."
+      }
+    });
+  }
+
   const user = createUser({
     name: values.full_name,
     business_name: values.business_name,
@@ -4443,7 +4636,10 @@ app.post("/signup", requireGuest, (req, res) => {
     applyReferralReward(referrer.id);
   }
 
-  ensureCustomerPage(user);
+  ensureCustomerPage(user, {
+    slug: slugSelection.slug,
+    starterTemplate: values.starter_template
+  });
   req.session.customerUserId = user.id;
   return res.redirect("/studio");
 });

@@ -21,15 +21,15 @@
         </p>
       </div>
       <p class="eyebrow">Self-serve launch</p>
-      <h1>Sign up and start building your link-in-bio page.</h1>
+      <h1>Claim your URL and launch a page people can act on.</h1>
       <p class="lead">
-        Create an account, claim your username, and customize a search-friendly link-in-bio page without waiting for manual setup.
-        The first <%= founderOffer.limit %> users get lifetime access, and everyone after that starts with a <%= trialDays %>-day free trial.
+        Create a search-friendly bio page with links, lead capture, analytics, and a clean public URL.
+        The first <%= founderOffer.limit %> users get lifetime access. Everyone after that starts with a <%= trialDays %>-day free trial.
       </p>
       <div class="feature-list">
-        <div class="feature-item">Pick a theme and accent color</div>
-        <div class="feature-item">Upload your photo or logo</div>
-        <div class="feature-item">Add your buttons and publish when ready</div>
+        <div class="feature-item">Collect names, emails, and messages from your page</div>
+        <div class="feature-item">See views, clicks, leads, and top-performing links</div>
+        <div class="feature-item">Publish at myurlc.com/your-name in minutes</div>
       </div>
     </section>
 
@@ -51,6 +51,20 @@
       <% } %>
 
       <form method="POST" action="/signup" class="form-stack">
+        <input type="hidden" name="starter_template" value="<%= values.starter_template || 'service' %>" data-starter-template-input />
+
+        <div class="starter-template-panel">
+          <label>Start with a page type</label>
+          <div class="starter-picker">
+            <% starterTemplateOptions.forEach(option => { %>
+              <button class="starter-choice <%= (values.starter_template || 'service') === option.value ? 'is-active' : '' %>" type="button" data-template-choice="<%= option.value %>">
+                <strong><%= option.label %></strong>
+                <span><%= option.description %></span>
+              </button>
+            <% }) %>
+          </div>
+        </div>
+
         <div class="form-grid two">
           <div>
             <label>Full name</label>
@@ -64,6 +78,14 @@
 
         <label>Email</label>
         <input name="email" type="email" value="<%= values.email || '' %>" required />
+
+        <label>Public username</label>
+        <div class="claim-input-shell">
+          <span>myurlc.com/</span>
+          <input name="slug" value="<%= values.slug || '' %>" placeholder="your-brand" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" minlength="3" maxlength="32" autocapitalize="off" spellcheck="false" data-username-check />
+        </div>
+        <p class="username-status" data-username-status aria-live="polite"></p>
+        <p class="field-hint">Use 3-32 lowercase letters, numbers, or hyphens. You can change this in Studio before publishing.</p>
 
         <label>Password</label>
         <input name="password" type="password" minlength="8" required />
